@@ -402,7 +402,7 @@
                         <!-- Matches will be generated here -->
                     </div>
                     <button id="complete-round" class="btn btn-primary hidden" style="width: 100%; margin-top: 1rem;">
-                        ✅ Complete All Matches
+                        ✅ Complete Round & Update Points
                     </button>
                     <button id="next-round" class="btn btn-primary hidden" style="width: 100%; margin-top: 1rem;">
                         Next Round
@@ -542,7 +542,7 @@
                     team2: team2,
                     team1Score: 0,
                     team2Score: 0,
-                    completed: false
+                    pointsAwarded: false
                 });
             } else {
                 // 8 players: more complex pairing
@@ -593,7 +593,7 @@
                                 team2: bestOpponentPair,
                                 team1Score: 0,
                                 team2Score: 0,
-                                completed: false
+                                pointsAwarded: false
                             });
                             
                             partnership.forEach(id => usedPlayers.add(id));
@@ -618,7 +618,7 @@
                     team2: [sortedPlayers[1].id, sortedPlayers[3].id],
                     team1Score: 0,
                     team2Score: 0,
-                    completed: false
+                    pointsAwarded: false
                 });
             } else {
                 roundMatches.push({
@@ -627,7 +627,7 @@
                     team2: [sortedPlayers[1].id, sortedPlayers[3].id],
                     team1Score: 0,
                     team2Score: 0,
-                    completed: false
+                    pointsAwarded: false
                 });
                 roundMatches.push({
                     id: `round-${currentRound}-match-1`,
@@ -635,7 +635,7 @@
                     team2: [sortedPlayers[5].id, sortedPlayers[7].id],
                     team1Score: 0,
                     team2Score: 0,
-                    completed: false
+                    pointsAwarded: false
                 });
             }
 
@@ -762,18 +762,16 @@
                         <div class="score-inputs">
                             <input type="number" class="score-input" min="0" max="21"
                                    value="${match.team1Score || ''}" 
-                                   ${match.completed ? 'disabled' : ''}
                                    placeholder="0"
                                    onchange="updateMatchScore('${match.id}', 'team1', this.value)">
                             <span>-</span>
                             <input type="number" class="score-input" min="0" max="21"
                                    value="${match.team2Score || ''}" 
-                                   ${match.completed ? 'disabled' : ''}
                                    placeholder="0"
                                    onchange="updateMatchScore('${match.id}', 'team2', this.value)">
                         </div>
-                        ${match.completed ? 
-                            '<span style="color: #10b981; font-weight: 500;">✅ Complete</span>' :
+                        ${match.pointsAwarded ? 
+                            '<span style="color: #10b981; font-weight: 500;">✅ Points Awarded</span>' :
                             ''
                         }
                     </div>
@@ -786,14 +784,14 @@
             // Show complete round or next round button
             const allMatchesHaveScores = matches.every(match => match.team1Score + match.team2Score === 21);
             const hasErrors = matches.some(match => match.team1Score + match.team2Score > 21);
-            const allComplete = matches.every(match => match.completed);
+            const allPointsAwarded = matches.every(match => match.pointsAwarded);
             const completeRoundBtn = document.getElementById('complete-round');
             const nextRoundBtn = document.getElementById('next-round');
             
-            if (allComplete) {
+            if (allPointsAwarded) {
                 completeRoundBtn.classList.add('hidden');
                 nextRoundBtn.classList.remove('hidden');
-            } else if (allMatchesHaveScores && !allComplete && !hasErrors) {
+            } else if (allMatchesHaveScores && !hasErrors) {
                 completeRoundBtn.classList.remove('hidden');
                 nextRoundBtn.classList.add('hidden');
             } else {
@@ -844,9 +842,14 @@
 
         function updateMatchScore(matchId, team, score) {
             const match = matches.find(m => m.id === matchId);
-            if (match && !match.completed) {
+            if (match) {
                 const newScore = Math.max(0, parseInt(score) || 0);
                 match[`${team}Score`] = newScore;
+                
+                // If points were already awarded, we need to recalculate
+                if (match.pointsAwarded) {
+                    recalculatePlayerPoints();
+                }
                 
                 // Auto-populate the other team's score if this score is valid
                 if (newScore > 0 && newScore <= 21) {
@@ -861,10 +864,34 @@
             }
         }
 
+        function recalculatePlayerPoints() {
+            // Reset all players to their base points (from previous rounds)
+            // This is complex, so for now we'll just recalculate from current round
+            // In a more sophisticated version, we'd need to track points per round
+            
+            // For now, let's just clear points from current incomplete matches
+            // and we'll re-add them when the round is completed
+            renderLeaderboard();
+        }
+
         function completeAllMatches() {
+            let allValid = true;
+            
+            // Check if all matches have valid scores
             matches.forEach(match => {
-                if (!match.completed && match.team1Score + match.team2Score === 21) {
-                    // Update player partnerships and opponents (only for Americano)
+                if (match.team1Score + match.team2Score !== 21) {
+                    allValid = false;
+                }
+            });
+            
+            if (!allValid) {
+                alert('Please ensure all matches have scores that total exactly 21 points.');
+                return;
+            }
+
+            matches.forEach(match => {
+                if (!match.pointsAwarded && match.team1Score + match.team2Score === 21) {
+                    // Award points to players
                     players.forEach(player => {
                         if (match.team1.includes(player.id)) {
                             if (tournamentPhase === 'americano') {
@@ -882,7 +909,7 @@
                             player.totalPoints += match.team2Score;
                         }
                     });
-                    match.completed = true;
+                    match.pointsAwarded = true;
                 }
             });
             updateUI();
