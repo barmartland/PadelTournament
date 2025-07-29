@@ -542,7 +542,11 @@
                     team2: team2,
                     team1Score: 0,
                     team2Score: 0,
-                    pointsAwarded: false
+                    pointsAwarded: false,
+                    team1PointsAwarded: 0,
+                    team2PointsAwarded: 0,
+                    team1PointsAwarded: 0,
+                    team2PointsAwarded: 0
                 });
             } else {
                 // 8 players: more complex pairing
@@ -593,7 +597,9 @@
                                 team2: bestOpponentPair,
                                 team1Score: 0,
                                 team2Score: 0,
-                                pointsAwarded: false
+                                pointsAwarded: false,
+                                team1PointsAwarded: 0,
+                                team2PointsAwarded: 0
                             });
                             
                             partnership.forEach(id => usedPlayers.add(id));
@@ -627,7 +633,9 @@
                     team2: [sortedPlayers[1].id, sortedPlayers[3].id],
                     team1Score: 0,
                     team2Score: 0,
-                    pointsAwarded: false
+                    pointsAwarded: false,
+                    team1PointsAwarded: 0,
+                    team2PointsAwarded: 0
                 });
                 roundMatches.push({
                     id: `round-${currentRound}-match-1`,
@@ -635,7 +643,9 @@
                     team2: [sortedPlayers[5].id, sortedPlayers[7].id],
                     team1Score: 0,
                     team2Score: 0,
-                    pointsAwarded: false
+                    pointsAwarded: false,
+                    team1PointsAwarded: 0,
+                    team2PointsAwarded: 0
                 });
             }
 
@@ -844,34 +854,49 @@
             const match = matches.find(m => m.id === matchId);
             if (match) {
                 const newScore = Math.max(0, parseInt(score) || 0);
+                const oldScore = match[`${team}Score`];
                 match[`${team}Score`] = newScore;
                 
-                // If points were already awarded, we need to recalculate
-                if (match.pointsAwarded) {
-                    recalculatePlayerPoints();
-                }
-                
-                // Auto-populate the other team's score if this score is valid
-                if (newScore > 0 && newScore <= 21) {
+                // Auto-populate the other team's score if this score is valid and changed
+                if (newScore !== oldScore && newScore > 0 && newScore <= 21) {
                     const otherTeam = team === 'team1' ? 'team2' : 'team1';
                     const remainingPoints = 21 - newScore;
-                    if (remainingPoints >= 0 && match[`${otherTeam}Score`] === 0) {
+                    if (remainingPoints >= 0) {
                         match[`${otherTeam}Score`] = remainingPoints;
                     }
                 }
                 
+                // If points were already awarded, update player points immediately
+                if (match.pointsAwarded) {
+                    updatePlayerPointsForMatch(match);
+                }
+                
                 renderMatches();
+                renderLeaderboard();
             }
         }
 
-        function recalculatePlayerPoints() {
-            // Reset all players to their base points (from previous rounds)
-            // This is complex, so for now we'll just recalculate from current round
-            // In a more sophisticated version, we'd need to track points per round
+        function updatePlayerPointsForMatch(match) {
+            // First, subtract the previously awarded points
+            players.forEach(player => {
+                if (match.team1.includes(player.id)) {
+                    player.totalPoints -= match.team1PointsAwarded;
+                } else if (match.team2.includes(player.id)) {
+                    player.totalPoints -= match.team2PointsAwarded;
+                }
+            });
             
-            // For now, let's just clear points from current incomplete matches
-            // and we'll re-add them when the round is completed
-            renderLeaderboard();
+            // Then add the new points
+            match.team1PointsAwarded = match.team1Score;
+            match.team2PointsAwarded = match.team2Score;
+            
+            players.forEach(player => {
+                if (match.team1.includes(player.id)) {
+                    player.totalPoints += match.team1PointsAwarded;
+                } else if (match.team2.includes(player.id)) {
+                    player.totalPoints += match.team2PointsAwarded;
+                }
+            });
         }
 
         function completeAllMatches() {
@@ -891,7 +916,10 @@
 
             matches.forEach(match => {
                 if (!match.pointsAwarded && match.team1Score + match.team2Score === 21) {
-                    // Award points to players
+                    // Award points and track partnerships for Americano
+                    match.team1PointsAwarded = match.team1Score;
+                    match.team2PointsAwarded = match.team2Score;
+                    
                     players.forEach(player => {
                         if (match.team1.includes(player.id)) {
                             if (tournamentPhase === 'americano') {
