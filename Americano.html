@@ -255,14 +255,16 @@
         .hidden {
             display: none;
         }
+        
+        @media (max-width: 768px) {
             .grid-2 {
                 grid-template-columns: 1fr;
             }
             
             .setup-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr 1fr;
             }
-        
+        }
     </style>
 </head>
 <body>
