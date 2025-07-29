@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Padel Mexicano Tournament</title>
+    <title>Padel Madsicano Tournament</title>
     <style>
         * {
             margin: 0;
@@ -262,6 +262,48 @@
             color: #1e40af;
         }
         
+        .phase-transition {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            border: 3px solid #d97706;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: center;
+            color: white;
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3);
+        }
+        
+        .phase-transition h3 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .phase-transition p {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.95;
+        }
+        
+        .phase-indicator {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-left: 1rem;
+        }
+        
+        .americano-phase {
+            background: #10b981;
+            color: white;
+        }
+        
+        .mexicano-phase {
+            background: #f59e0b;
+            color: white;
+        }
+        
         .hidden {
             display: none;
         }
@@ -274,6 +316,14 @@
             .setup-grid {
                 grid-template-columns: 1fr;
             }
+            
+            .phase-transition {
+                padding: 1.5rem;
+            }
+            
+            .phase-transition h3 {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
@@ -281,8 +331,8 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>🌮 Padel Mexicano Tournament</h1>
-            <p>Rank-based pairing • Individual scoring • Competition gets fiercer each round</p>
+            <h1>🎭 Padel Madsicano Tournament</h1>
+            <p>Hybrid format • Americano first, then Mexicano • Ultimate competition</p>
         </div>
 
         <!-- Setup Phase -->
@@ -292,8 +342,8 @@
             <div class="form-group" style="margin-bottom: 1.5rem;">
                 <label for="player-count">Number of Players</label>
                 <select id="player-count">
-                    <option value="4">4 Players</option>
-                    <option value="8">8 Players</option>
+                    <option value="4">4 Players (3 Americano rounds, then Mexicano)</option>
+                    <option value="8">8 Players (7 Americano rounds, then Mexicano)</option>
                 </select>
             </div>
 
@@ -302,7 +352,19 @@
             </div>
 
             <button id="start-tournament" class="btn btn-primary" style="width: 100%;">
-                ▶️ Start Mexicano Tournament
+                ▶️ Start Madsicano Tournament
+            </button>
+        </div>
+
+        <!-- Phase Transition Banner -->
+        <div id="phase-transition" class="phase-transition hidden">
+            <h3>🎉 Americano Phase Complete! 🎉</h3>
+            <p>Final Americano standings established. Now entering Mexicano phase with rank-based pairing!</p>
+            <div id="americano-final-standings">
+                <!-- Final standings will be shown here -->
+            </div>
+            <button id="start-mexicano" class="btn btn-primary" style="background: white; color: #f59e0b; border: 2px solid white; margin-top: 1rem;">
+                🌮 Start Mexicano Phase
             </button>
         </div>
 
@@ -311,7 +373,10 @@
             <!-- Round Header -->
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h2 id="round-header">Round 1</h2>
+                    <div>
+                        <h2 id="round-header">Round 1</h2>
+                        <span id="phase-indicator" class="phase-indicator americano-phase">Americano Phase</span>
+                    </div>
                     <button id="reset-tournament" class="btn btn-secondary">
                         🔄 Reset
                     </button>
@@ -342,15 +407,6 @@
                     <div id="leaderboard-container">
                         <!-- Leaderboard will be generated here -->
                     </div>
-                    <div id="winner-banner" class="winner-banner hidden">
-                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎉</div>
-                        <div style="font-size: 1.5rem; font-weight: bold; color: #10b981; margin-bottom: 0.5rem;">
-                            Tournament Winner: <span id="winner-name"></span>!
-                        </div>
-                        <div style="color: #059669;">
-                            Final Score: <span id="winner-score"></span> points
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -363,7 +419,8 @@
         let currentRound = 0;
         let matches = [];
         let tournamentStarted = false;
-        let maxRounds = 10; // Can continue indefinitely
+        let tournamentPhase = 'americano'; // 'americano' or 'mexicano'
+        let americanoComplete = false;
 
         // Initialize the app
         function init() {
@@ -381,6 +438,7 @@
             document.getElementById('reset-tournament').addEventListener('click', resetTournament);
             document.getElementById('complete-round').addEventListener('click', completeAllMatches);
             document.getElementById('next-round').addEventListener('click', nextRound);
+            document.getElementById('start-mexicano').addEventListener('click', startMexicanoPhase);
         }
 
         function generatePlayerInputs() {
@@ -409,9 +467,21 @@
                 players.push({
                     id: i,
                     name: name,
-                    totalPoints: 0
+                    totalPoints: 0,
+                    partnerships: new Set(),
+                    opponents: new Set()
                 });
             }
+        }
+
+        function generatePartnerships(playerIds) {
+            const partnerships = [];
+            for (let i = 0; i < playerIds.length; i++) {
+                for (let j = i + 1; j < playerIds.length; j++) {
+                    partnerships.push([playerIds[i], playerIds[j]]);
+                }
+            }
+            return partnerships;
         }
 
         function shuffleArray(array) {
@@ -423,82 +493,149 @@
             return shuffled;
         }
 
-        function generateRoundMatches() {
+        function generateAmericanoMatches() {
+            const playerIds = players.map(p => p.id);
+            const allPartnerships = generatePartnerships(playerIds);
+            
+            // Filter partnerships that haven't been used yet
+            const availablePartnerships = allPartnerships.filter(([p1, p2]) => {
+                const player1 = players.find(p => p.id === p1);
+                const player2 = players.find(p => p.id === p2);
+                return !player1.partnerships.has(p2) && !player2.partnerships.has(p1);
+            });
+
+            if (availablePartnerships.length < 2) {
+                // Americano phase complete
+                americanoComplete = true;
+                return [];
+            }
+
             const roundMatches = [];
 
-            if (currentRound === 1) {
-                // First round: Random pairing
-                const shuffledPlayers = shuffleArray(players.map(p => p.id));
+            if (playerCount === 4) {
+                const team1 = availablePartnerships[0];
+                const remainingPlayers = playerIds.filter(id => !team1.includes(id));
+                const team2 = remainingPlayers;
                 
-                if (playerCount === 4) {
-                    roundMatches.push({
-                        id: `round-${currentRound}-match-0`,
-                        team1: [shuffledPlayers[0], shuffledPlayers[1]],
-                        team2: [shuffledPlayers[2], shuffledPlayers[3]],
-                        team1Score: 0,
-                        team2Score: 0,
-                        completed: false
-                    });
-                } else {
-                    // 8 players: 2 matches
-                    roundMatches.push({
-                        id: `round-${currentRound}-match-0`,
-                        team1: [shuffledPlayers[0], shuffledPlayers[1]],
-                        team2: [shuffledPlayers[2], shuffledPlayers[3]],
-                        team1Score: 0,
-                        team2Score: 0,
-                        completed: false
-                    });
-                    roundMatches.push({
-                        id: `round-${currentRound}-match-1`,
-                        team1: [shuffledPlayers[4], shuffledPlayers[5]],
-                        team2: [shuffledPlayers[6], shuffledPlayers[7]],
-                        team1Score: 0,
-                        team2Score: 0,
-                        completed: false
-                    });
-                }
+                roundMatches.push({
+                    id: `round-${currentRound}-match-0`,
+                    team1: team1,
+                    team2: team2,
+                    team1Score: 0,
+                    team2Score: 0,
+                    completed: false
+                });
             } else {
-                // Subsequent rounds: Rank-based pairing
-                const sortedPlayers = [...players].sort((a, b) => b.totalPoints - a.totalPoints);
+                // 8 players: more complex pairing
+                const usedPlayers = new Set();
+                let matchIndex = 0;
+                const matchesPerRound = 2;
                 
-                if (playerCount === 4) {
-                    // 1st & 3rd vs 2nd & 4th
-                    roundMatches.push({
-                        id: `round-${currentRound}-match-0`,
-                        team1: [sortedPlayers[0].id, sortedPlayers[2].id],
-                        team2: [sortedPlayers[1].id, sortedPlayers[3].id],
-                        team1Score: 0,
-                        team2Score: 0,
-                        completed: false
-                    });
-                } else {
-                    // 8 players: 1st&3rd vs 2nd&4th, 5th&7th vs 6th&8th
-                    roundMatches.push({
-                        id: `round-${currentRound}-match-0`,
-                        team1: [sortedPlayers[0].id, sortedPlayers[2].id],
-                        team2: [sortedPlayers[1].id, sortedPlayers[3].id],
-                        team1Score: 0,
-                        team2Score: 0,
-                        completed: false
-                    });
-                    roundMatches.push({
-                        id: `round-${currentRound}-match-1`,
-                        team1: [sortedPlayers[4].id, sortedPlayers[6].id],
-                        team2: [sortedPlayers[5].id, sortedPlayers[7].id],
-                        team1Score: 0,
-                        team2Score: 0,
-                        completed: false
-                    });
+                for (const partnership of availablePartnerships) {
+                    if (matchIndex >= matchesPerRound) break;
+                    
+                    const [p1, p2] = partnership;
+                    if (usedPlayers.has(p1) || usedPlayers.has(p2)) continue;
+                    
+                    const remainingPlayers = playerIds.filter(id => 
+                        !usedPlayers.has(id) && !partnership.includes(id)
+                    );
+                    
+                    if (remainingPlayers.length >= 2) {
+                        let bestOpponentPair = null;
+                        let minPreviousEncounters = Infinity;
+                        
+                        for (let i = 0; i < remainingPlayers.length; i++) {
+                            for (let j = i + 1; j < remainingPlayers.length; j++) {
+                                const opp1 = remainingPlayers[i];
+                                const opp2 = remainingPlayers[j];
+                                
+                                if (usedPlayers.has(opp1) || usedPlayers.has(opp2)) continue;
+                                
+                                const player1 = players.find(p => p.id === p1);
+                                const player2 = players.find(p => p.id === p2);
+                                const encounters = 
+                                    (player1.opponents.has(opp1) ? 1 : 0) +
+                                    (player1.opponents.has(opp2) ? 1 : 0) +
+                                    (player2.opponents.has(opp1) ? 1 : 0) +
+                                    (player2.opponents.has(opp2) ? 1 : 0);
+                                
+                                if (encounters < minPreviousEncounters) {
+                                    minPreviousEncounters = encounters;
+                                    bestOpponentPair = [opp1, opp2];
+                                }
+                            }
+                        }
+                        
+                        if (bestOpponentPair) {
+                            roundMatches.push({
+                                id: `round-${currentRound}-match-${matchIndex}`,
+                                team1: partnership,
+                                team2: bestOpponentPair,
+                                team1Score: 0,
+                                team2Score: 0,
+                                completed: false
+                            });
+                            
+                            partnership.forEach(id => usedPlayers.add(id));
+                            bestOpponentPair.forEach(id => usedPlayers.add(id));
+                            matchIndex++;
+                        }
+                    }
                 }
             }
 
             return roundMatches;
         }
 
+        function generateMexicanoMatches() {
+            const roundMatches = [];
+            const sortedPlayers = [...players].sort((a, b) => b.totalPoints - a.totalPoints);
+            
+            if (playerCount === 4) {
+                roundMatches.push({
+                    id: `round-${currentRound}-match-0`,
+                    team1: [sortedPlayers[0].id, sortedPlayers[2].id],
+                    team2: [sortedPlayers[1].id, sortedPlayers[3].id],
+                    team1Score: 0,
+                    team2Score: 0,
+                    completed: false
+                });
+            } else {
+                roundMatches.push({
+                    id: `round-${currentRound}-match-0`,
+                    team1: [sortedPlayers[0].id, sortedPlayers[2].id],
+                    team2: [sortedPlayers[1].id, sortedPlayers[3].id],
+                    team1Score: 0,
+                    team2Score: 0,
+                    completed: false
+                });
+                roundMatches.push({
+                    id: `round-${currentRound}-match-1`,
+                    team1: [sortedPlayers[4].id, sortedPlayers[6].id],
+                    team2: [sortedPlayers[5].id, sortedPlayers[7].id],
+                    team1Score: 0,
+                    team2Score: 0,
+                    completed: false
+                });
+            }
+
+            return roundMatches;
+        }
+
+        function generateRoundMatches() {
+            if (tournamentPhase === 'americano') {
+                return generateAmericanoMatches();
+            } else {
+                return generateMexicanoMatches();
+            }
+        }
+
         function startTournament() {
             initializePlayers();
             currentRound = 1;
+            tournamentPhase = 'americano';
+            americanoComplete = false;
             matches = generateRoundMatches();
             tournamentStarted = true;
             
@@ -508,17 +645,52 @@
             updateUI();
         }
 
+        function showPhaseTransition() {
+            const sortedPlayers = [...players].sort((a, b) => b.totalPoints - a.totalPoints);
+            const standingsHtml = sortedPlayers.map((player, index) => 
+                `<div style="background: rgba(255,255,255,0.2); margin: 0.5rem 0; padding: 0.5rem 1rem; border-radius: 8px; display: flex; justify-content: space-between;">
+                    <span>#${index + 1} ${player.name}</span>
+                    <span style="font-weight: bold;">${player.totalPoints} points</span>
+                </div>`
+            ).join('');
+            
+            document.getElementById('americano-final-standings').innerHTML = standingsHtml;
+            document.getElementById('phase-transition').classList.remove('hidden');
+            document.getElementById('tournament-phase').classList.add('hidden');
+        }
+
+        function startMexicanoPhase() {
+            tournamentPhase = 'mexicano';
+            currentRound = 1;
+            matches = generateRoundMatches();
+            
+            document.getElementById('phase-transition').classList.add('hidden');
+            document.getElementById('tournament-phase').classList.remove('hidden');
+            
+            updateUI();
+        }
+
         function updateUI() {
-            document.getElementById('round-header').textContent = `Round ${currentRound}`;
+            const maxAmericanoRounds = playerCount === 4 ? 3 : 7;
+            
+            if (tournamentPhase === 'americano') {
+                document.getElementById('round-header').textContent = `Americano Round ${currentRound} of ${maxAmericanoRounds}`;
+                document.getElementById('phase-indicator').textContent = 'Americano Phase';
+                document.getElementById('phase-indicator').className = 'phase-indicator americano-phase';
+            } else {
+                document.getElementById('round-header').textContent = `Mexicano Round ${currentRound}`;
+                document.getElementById('phase-indicator').textContent = 'Mexicano Phase';
+                document.getElementById('phase-indicator').className = 'phase-indicator mexicano-phase';
+            }
             
             // Update pairing explanation
             const explanation = document.getElementById('pairing-explanation');
-            if (currentRound === 1) {
-                explanation.textContent = "🎲 First round: Players are paired randomly to establish initial rankings.";
+            if (tournamentPhase === 'americano') {
+                explanation.textContent = "🔄 Americano: Everyone partners with everyone else exactly once.";
             } else {
                 const pairingText = playerCount === 4 
-                    ? "🏆 Rank-based pairing: 1st & 3rd place vs 2nd & 4th place"
-                    : "🏆 Rank-based pairing: 1st & 3rd vs 2nd & 4th, 5th & 7th vs 6th & 8th";
+                    ? "🏆 Mexicano: 1st & 3rd place vs 2nd & 4th place"
+                    : "🏆 Mexicano: 1st & 3rd vs 2nd & 4th, 5th & 7th vs 6th & 8th";
                 explanation.textContent = pairingText;
             }
             
@@ -639,11 +811,21 @@
         function completeAllMatches() {
             matches.forEach(match => {
                 if (!match.completed && match.team1Score + match.team2Score === 21) {
-                    // Update player points
+                    // Update player partnerships and opponents (only for Americano)
                     players.forEach(player => {
                         if (match.team1.includes(player.id)) {
+                            if (tournamentPhase === 'americano') {
+                                const partner = match.team1.find(id => id !== player.id);
+                                player.partnerships.add(partner);
+                                match.team2.forEach(oppId => player.opponents.add(oppId));
+                            }
                             player.totalPoints += match.team1Score;
                         } else if (match.team2.includes(player.id)) {
+                            if (tournamentPhase === 'americano') {
+                                const partner = match.team2.find(id => id !== player.id);
+                                player.partnerships.add(partner);
+                                match.team1.forEach(oppId => player.opponents.add(oppId));
+                            }
                             player.totalPoints += match.team2Score;
                         }
                     });
@@ -654,8 +836,26 @@
         }
 
         function nextRound() {
+            if (tournamentPhase === 'americano') {
+                const maxAmericanoRounds = playerCount === 4 ? 3 : 7;
+                if (currentRound >= maxAmericanoRounds) {
+                    // Check if Americano is actually complete
+                    const nextMatches = generateAmericanoMatches();
+                    if (nextMatches.length === 0) {
+                        showPhaseTransition();
+                        return;
+                    }
+                }
+            }
+            
             currentRound++;
             matches = generateRoundMatches();
+            
+            if (tournamentPhase === 'americano' && matches.length === 0) {
+                showPhaseTransition();
+                return;
+            }
+            
             updateUI();
         }
 
@@ -665,9 +865,12 @@
             currentRound = 0;
             matches = [];
             tournamentStarted = false;
+            tournamentPhase = 'americano';
+            americanoComplete = false;
             
             document.getElementById('setup-phase').classList.remove('hidden');
             document.getElementById('tournament-phase').classList.add('hidden');
+            document.getElementById('phase-transition').classList.add('hidden');
             
             generatePlayerInputs();
         }
