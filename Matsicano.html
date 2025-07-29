@@ -377,9 +377,17 @@
                         <h2 id="round-header">Round 1</h2>
                         <span id="phase-indicator" class="phase-indicator americano-phase">Americano Phase</span>
                     </div>
-                    <button id="reset-tournament" class="btn btn-secondary">
-                        🔄 Reset
-                    </button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="back-round" class="btn btn-secondary btn-small hidden">
+                            ← Back
+                        </button>
+                        <button id="home-button" class="btn btn-secondary btn-small">
+                            🏠 Home
+                        </button>
+                        <button id="reset-tournament" class="btn btn-secondary">
+                            🔄 Reset
+                        </button>
+                    </div>
                 </div>
                 <div id="pairing-explanation" class="pairing-explanation">
                     <!-- Pairing explanation will be shown here -->
@@ -421,6 +429,7 @@
         let tournamentStarted = false;
         let tournamentPhase = 'americano'; // 'americano' or 'mexicano'
         let americanoComplete = false;
+        let roundHistory = []; // Store history for back functionality
 
         // Initialize the app
         function init() {
@@ -439,6 +448,16 @@
             document.getElementById('complete-round').addEventListener('click', completeAllMatches);
             document.getElementById('next-round').addEventListener('click', nextRound);
             document.getElementById('start-mexicano').addEventListener('click', startMexicanoPhase);
+            document.getElementById('back-round').addEventListener('click', goBackRound);
+            document.getElementById('home-button').addEventListener('click', goHome);
+            
+            // Prevent browser back button from losing data
+            window.addEventListener('beforeunload', (e) => {
+                if (tournamentStarted) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
         }
 
         function generatePlayerInputs() {
@@ -694,6 +713,14 @@
                 explanation.textContent = pairingText;
             }
             
+            // Show/hide back button
+            const backBtn = document.getElementById('back-round');
+            if (roundHistory.length > 0) {
+                backBtn.classList.remove('hidden');
+            } else {
+                backBtn.classList.add('hidden');
+            }
+            
             renderMatches();
             renderLeaderboard();
         }
@@ -733,14 +760,16 @@
                     </div>
                     <div class="match-score">
                         <div class="score-inputs">
-                            <input type="number" class="score-input" min="0" 
-                                   value="${match.team1Score}" 
+                            <input type="number" class="score-input" min="0" max="21"
+                                   value="${match.team1Score || ''}" 
                                    ${match.completed ? 'disabled' : ''}
+                                   placeholder="0"
                                    onchange="updateMatchScore('${match.id}', 'team1', this.value)">
                             <span>-</span>
-                            <input type="number" class="score-input" min="0" 
-                                   value="${match.team2Score}" 
+                            <input type="number" class="score-input" min="0" max="21"
+                                   value="${match.team2Score || ''}" 
                                    ${match.completed ? 'disabled' : ''}
+                                   placeholder="0"
                                    onchange="updateMatchScore('${match.id}', 'team2', this.value)">
                         </div>
                         ${match.completed ? 
@@ -800,10 +829,34 @@
             });
         }
 
+        function saveRoundState() {
+            roundHistory.push({
+                round: currentRound,
+                phase: tournamentPhase,
+                players: JSON.parse(JSON.stringify(players.map(p => ({
+                    ...p,
+                    partnerships: Array.from(p.partnerships),
+                    opponents: Array.from(p.opponents)
+                })))),
+                matches: JSON.parse(JSON.stringify(matches))
+            });
+        }
+
         function updateMatchScore(matchId, team, score) {
             const match = matches.find(m => m.id === matchId);
             if (match && !match.completed) {
-                match[`${team}Score`] = Math.max(0, parseInt(score) || 0);
+                const newScore = Math.max(0, parseInt(score) || 0);
+                match[`${team}Score`] = newScore;
+                
+                // Auto-populate the other team's score if this score is valid
+                if (newScore > 0 && newScore <= 21) {
+                    const otherTeam = team === 'team1' ? 'team2' : 'team1';
+                    const remainingPoints = 21 - newScore;
+                    if (remainingPoints >= 0 && match[`${otherTeam}Score`] === 0) {
+                        match[`${otherTeam}Score`] = remainingPoints;
+                    }
+                }
+                
                 renderMatches();
             }
         }
@@ -836,6 +889,9 @@
         }
 
         function nextRound() {
+            // Save current state before moving to next round
+            saveRoundState();
+            
             if (tournamentPhase === 'americano') {
                 const maxAmericanoRounds = playerCount === 4 ? 3 : 7;
                 if (currentRound >= maxAmericanoRounds) {
@@ -850,6 +906,39 @@
             updateUI();
         }
 
+        function goBackRound() {
+            if (roundHistory.length === 0) return;
+            
+            if (confirm('Are you sure you want to go back to the previous round? Current round progress will be lost.')) {
+                const previousState = roundHistory.pop();
+                currentRound = previousState.round;
+                tournamentPhase = previousState.phase;
+                
+                // Restore players state
+                players = previousState.players.map(p => ({
+                    ...p,
+                    partnerships: new Set(p.partnerships),
+                    opponents: new Set(p.opponents)
+                }));
+                
+                matches = previousState.matches;
+                
+                // Hide transition if we were in mexicano
+                document.getElementById('phase-transition').classList.add('hidden');
+                document.getElementById('tournament-phase').classList.remove('hidden');
+                
+                updateUI();
+            }
+        }
+
+        function goHome() {
+            if (tournamentStarted && confirm('Are you sure you want to return to home? All tournament progress will be lost.')) {
+                window.location.href = 'index.html';
+            } else if (!tournamentStarted) {
+                window.location.href = 'index.html';
+            }
+        }
+
         function resetTournament() {
             playerCount = parseInt(document.getElementById('player-count').value);
             players = [];
@@ -858,12 +947,13 @@
             tournamentStarted = false;
             tournamentPhase = 'americano';
             americanoComplete = false;
+            roundHistory = [];
             
             document.getElementById('setup-phase').classList.remove('hidden');
             document.getElementById('tournament-phase').classList.add('hidden');
             document.getElementById('phase-transition').classList.add('hidden');
             
-            generatePlayerInputs() ;
+            generatePlayerInputs();
         }
 
         // Initialize the app when page loads
