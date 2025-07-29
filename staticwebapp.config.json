@@ -1,0 +1,23 @@
+{
+  "routes": [
+    {
+      "route": "/",
+      "serve": "/index.html"
+    },
+    {
+      "route": "/*",
+      "serve": "/index.html",
+      "statusCode": 404
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["*.{css,scss,js,png,gif,ico,jpg,svg}"]
+  },
+  "mimeTypes": {
+    ".json": "application/json"
+  },
+  "globalHeaders": {
+    "Cache-Control": "no-cache"
+  }
+}
