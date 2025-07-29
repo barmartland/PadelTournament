@@ -252,10 +252,20 @@
             background-color: #eff6ff;
         }
         
+        .pairing-explanation {
+            background: #f0f9ff;
+            border: 2px solid #3b82f6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #1e40af;
+        }
+        
         .hidden {
             display: none;
         }
-
+        
         @media (max-width: 768px) {
             .grid-2 {
                 grid-template-columns: 1fr;
@@ -271,8 +281,8 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>🏆 Padel Americano Tournament</h1>
-            <p>Individual scoring • Everyone partners with everyone</p>
+            <h1>🔄 Padel Americano Tournament</h1>
+            <p>Everyone partners with everyone • Individual scoring • Fair rotation</p>
         </div>
 
         <!-- Setup Phase -->
@@ -292,7 +302,7 @@
             </div>
 
             <button id="start-tournament" class="btn btn-primary" style="width: 100%;">
-                ▶️ Start Tournament
+                ▶️ Start Americano Tournament
             </button>
         </div>
 
@@ -314,6 +324,9 @@
                         </button>
                     </div>
                 </div>
+                <div id="pairing-explanation" class="pairing-explanation">
+                    🔄 Americano: Everyone partners with everyone else exactly once.
+                </div>
             </div>
 
             <div class="grid-2">
@@ -323,9 +336,6 @@
                     <div id="matches-container">
                         <!-- Matches will be generated here -->
                     </div>
-                    <button id="complete-round" class="btn btn-primary hidden" style="width: 100%; margin-top: 1rem;">
-                        ✅ Complete All Matches
-                    </button>
                     <button id="complete-round" class="btn btn-primary hidden" style="width: 100%; margin-top: 1rem;">
                         ✅ Complete Round & Update Points
                     </button>
@@ -362,7 +372,7 @@
         let matches = [];
         let tournamentStarted = false;
         let tournamentComplete = false;
-        let roundHistory = []; // Store history for back functionality
+        let roundHistory = [];
 
         // Initialize the app
         function init() {
@@ -380,6 +390,16 @@
             document.getElementById('reset-tournament').addEventListener('click', resetTournament);
             document.getElementById('complete-round').addEventListener('click', completeAllMatches);
             document.getElementById('next-round').addEventListener('click', nextRound);
+            document.getElementById('back-round').addEventListener('click', goBackRound);
+            document.getElementById('home-button').addEventListener('click', goHome);
+            
+            // Prevent browser back button from losing data
+            window.addEventListener('beforeunload', (e) => {
+                if (tournamentStarted) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
         }
 
         function generatePlayerInputs() {
@@ -455,7 +475,9 @@
                     team2: team2,
                     team1Score: 0,
                     team2Score: 0,
-                    completed: false
+                    pointsAwarded: false,
+                    team1PointsAwarded: 0,
+                    team2PointsAwarded: 0
                 });
             } else {
                 // For 8 players: more complex pairing needed
@@ -537,10 +559,169 @@
             updateUI();
         }
 
+        function saveRoundState() {
+            roundHistory.push({
+                round: currentRound,
+                players: JSON.parse(JSON.stringify(players.map(p => ({
+                    ...p,
+                    partnerships: Array.from(p.partnerships),
+                    opponents: Array.from(p.opponents)
+                })))),
+                matches: JSON.parse(JSON.stringify(matches))
+            });
+        }
+
+        function updateMatchScore(matchId, team, score) {
+            const match = matches.find(m => m.id === matchId);
+            if (match) {
+                const newScore = Math.max(0, parseInt(score) || 0);
+                const oldScore = match[`${team}Score`];
+                match[`${team}Score`] = newScore;
+                
+                // Auto-populate the other team's score if this score is valid and changed
+                if (newScore !== oldScore && newScore > 0 && newScore <= 21) {
+                    const otherTeam = team === 'team1' ? 'team2' : 'team1';
+                    const remainingPoints = 21 - newScore;
+                    if (remainingPoints >= 0) {
+                        match[`${otherTeam}Score`] = remainingPoints;
+                    }
+                }
+                
+                // If points were already awarded, update player points immediately
+                if (match.pointsAwarded) {
+                    updatePlayerPointsForMatch(match);
+                }
+                
+                renderMatches();
+                renderLeaderboard();
+            }
+        }
+
+        function updatePlayerPointsForMatch(match) {
+            // First, subtract the previously awarded points
+            players.forEach(player => {
+                if (match.team1.includes(player.id)) {
+                    player.totalPoints -= match.team1PointsAwarded;
+                } else if (match.team2.includes(player.id)) {
+                    player.totalPoints -= match.team2PointsAwarded;
+                }
+            });
+            
+            // Then add the new points
+            match.team1PointsAwarded = match.team1Score;
+            match.team2PointsAwarded = match.team2Score;
+            
+            players.forEach(player => {
+                if (match.team1.includes(player.id)) {
+                    player.totalPoints += match.team1PointsAwarded;
+                } else if (match.team2.includes(player.id)) {
+                    player.totalPoints += match.team2PointsAwarded;
+                }
+            });
+        }
+
+        function completeAllMatches() {
+            let allValid = true;
+            
+            // Check if all matches have valid scores
+            matches.forEach(match => {
+                if (match.team1Score + match.team2Score !== 21) {
+                    allValid = false;
+                }
+            });
+            
+            if (!allValid) {
+                alert('Please ensure all matches have scores that total exactly 21 points.');
+                return;
+            }
+
+            matches.forEach(match => {
+                if (!match.pointsAwarded && match.team1Score + match.team2Score === 21) {
+                    // Award points and track partnerships
+                    match.team1PointsAwarded = match.team1Score;
+                    match.team2PointsAwarded = match.team2Score;
+                    
+                    players.forEach(player => {
+                        if (match.team1.includes(player.id)) {
+                            const partner = match.team1.find(id => id !== player.id);
+                            player.partnerships.add(partner);
+                            match.team2.forEach(oppId => player.opponents.add(oppId));
+                            player.totalPoints += match.team1Score;
+                        } else if (match.team2.includes(player.id)) {
+                            const partner = match.team2.find(id => id !== player.id);
+                            player.partnerships.add(partner);
+                            match.team1.forEach(oppId => player.opponents.add(oppId));
+                            player.totalPoints += match.team2Score;
+                        }
+                    });
+                    match.pointsAwarded = true;
+                }
+            });
+            updateUI();
+        }
+
+        function nextRound() {
+            // Save current state before moving to next round
+            saveRoundState();
+            
+            const maxRounds = playerCount === 4 ? 3 : 7;
+            if (currentRound >= maxRounds) {
+                tournamentComplete = true;
+                updateUI();
+                return;
+            }
+
+            currentRound++;
+            matches = generateRoundMatches();
+            
+            if (matches.length === 0) {
+                tournamentComplete = true;
+            }
+            
+            updateUI();
+        }
+
+        function goBackRound() {
+            if (roundHistory.length === 0) return;
+            
+            if (confirm('Are you sure you want to go back to the previous round? Current round progress will be lost.')) {
+                const previousState = roundHistory.pop();
+                currentRound = previousState.round;
+                
+                // Restore players state
+                players = previousState.players.map(p => ({
+                    ...p,
+                    partnerships: new Set(p.partnerships),
+                    opponents: new Set(p.opponents)
+                }));
+                
+                matches = previousState.matches;
+                tournamentComplete = false;
+                
+                updateUI();
+            }
+        }
+
+        function goHome() {
+            if (tournamentStarted && confirm('Are you sure you want to return to home? All tournament progress will be lost.')) {
+                window.location.href = 'index.html';
+            } else if (!tournamentStarted) {
+                window.location.href = 'index.html';
+            }
+        }
+
         function updateUI() {
             const maxRounds = playerCount === 4 ? 3 : 7;
             document.getElementById('round-header').textContent = 
                 `Round ${currentRound} of ${maxRounds}${tournamentComplete ? ' - Tournament Complete!' : ''}`;
+            
+            // Show/hide back button
+            const backBtn = document.getElementById('back-round');
+            if (roundHistory.length > 0) {
+                backBtn.classList.remove('hidden');
+            } else {
+                backBtn.classList.add('hidden');
+            }
             
             renderMatches();
             renderLeaderboard();
@@ -581,18 +762,18 @@
                     </div>
                     <div class="match-score">
                         <div class="score-inputs">
-                            <input type="number" class="score-input" min="0" 
-                                   value="${match.team1Score}" 
-                                   ${match.completed ? 'disabled' : ''}
+                            <input type="number" class="score-input" min="0" max="21"
+                                   value="${match.team1Score || ''}" 
+                                   placeholder="0"
                                    onchange="updateMatchScore('${match.id}', 'team1', this.value)">
                             <span>-</span>
-                            <input type="number" class="score-input" min="0" 
-                                   value="${match.team2Score}" 
-                                   ${match.completed ? 'disabled' : ''}
+                            <input type="number" class="score-input" min="0" max="21"
+                                   value="${match.team2Score || ''}" 
+                                   placeholder="0"
                                    onchange="updateMatchScore('${match.id}', 'team2', this.value)">
                         </div>
-                        ${match.completed ? 
-                            '<span style="color: #10b981; font-weight: 500;">✅ Complete</span>' :
+                        ${match.pointsAwarded ? 
+                            '<span style="color: #10b981; font-weight: 500;">✅ Points Awarded</span>' :
                             ''
                         }
                     </div>
@@ -605,14 +786,14 @@
             // Show complete round or next round button
             const allMatchesHaveScores = matches.every(match => match.team1Score + match.team2Score === 21);
             const hasErrors = matches.some(match => match.team1Score + match.team2Score > 21);
-            const allComplete = matches.every(match => match.completed);
+            const allPointsAwarded = matches.every(match => match.pointsAwarded);
             const completeRoundBtn = document.getElementById('complete-round');
             const nextRoundBtn = document.getElementById('next-round');
             
-            if (allComplete && !tournamentComplete) {
+            if (allPointsAwarded && !tournamentComplete) {
                 completeRoundBtn.classList.add('hidden');
                 nextRoundBtn.classList.remove('hidden');
-            } else if (allMatchesHaveScores && !allComplete && !hasErrors) {
+            } else if (allMatchesHaveScores && !hasErrors) {
                 completeRoundBtn.classList.remove('hidden');
                 nextRoundBtn.classList.add('hidden');
             } else {
@@ -646,88 +827,16 @@
                 
                 container.appendChild(div);
             });
-
-            // Show winner banner if tournament is complete
-            const winnerBanner = document.getElementById('winner-banner');
+            
             if (tournamentComplete && sortedPlayers.length > 0) {
+                const winnerBanner = document.getElementById('winner-banner');
                 document.getElementById('winner-name').textContent = sortedPlayers[0].name;
                 document.getElementById('winner-score').textContent = sortedPlayers[0].totalPoints;
                 winnerBanner.classList.remove('hidden');
             } else {
-                winnerBanner.classList.add('hidden');
+                const winnerBanner = document.getElementById('winner-banner');
+                if (winnerBanner) winnerBanner.classList.add('hidden');
             }
-        }
-
-        function updateMatchScore(matchId, team, score) {
-            const match = matches.find(m => m.id === matchId);
-            if (match && !match.completed) {
-                match[`${team}Score`] = Math.max(0, parseInt(score) || 0);
-                renderMatches();
-            }
-        }
-
-        function completeAllMatches() {
-            matches.forEach(match => {
-                if (!match.completed && match.team1Score + match.team2Score === 21) {
-                    // Update player partnerships and opponents
-                    players.forEach(player => {
-                        if (match.team1.includes(player.id)) {
-                            const partner = match.team1.find(id => id !== player.id);
-                            player.partnerships.add(partner);
-                            match.team2.forEach(oppId => player.opponents.add(oppId));
-                            player.totalPoints += match.team1Score;
-                        } else if (match.team2.includes(player.id)) {
-                            const partner = match.team2.find(id => id !== player.id);
-                            player.partnerships.add(partner);
-                            match.team1.forEach(oppId => player.opponents.add(oppId));
-                            player.totalPoints += match.team2Score;
-                        }
-                    });
-                    match.completed = true;
-                }
-            });
-            updateUI();
-        }
-
-        function completeMatch(matchId) {
-            const match = matches.find(m => m.id === matchId);
-            if (!match || match.completed || match.team1Score + match.team2Score === 0) return;
-
-            // Update player partnerships and opponents
-            players.forEach(player => {
-                if (match.team1.includes(player.id)) {
-                    const partner = match.team1.find(id => id !== player.id);
-                    player.partnerships.add(partner);
-                    match.team2.forEach(oppId => player.opponents.add(oppId));
-                    player.totalPoints += match.team1Score;
-                } else if (match.team2.includes(player.id)) {
-                    const partner = match.team2.find(id => id !== player.id);
-                    player.partnerships.add(partner);
-                    match.team1.forEach(oppId => player.opponents.add(oppId));
-                    player.totalPoints += match.team2Score;
-                }
-            });
-
-            match.completed = true;
-            updateUI();
-        }
-
-        function nextRound() {
-            const maxRounds = playerCount === 4 ? 3 : 7;
-            if (currentRound >= maxRounds) {
-                tournamentComplete = true;
-                updateUI();
-                return;
-            }
-
-            currentRound++;
-            matches = generateRoundMatches();
-            
-            if (matches.length === 0) {
-                tournamentComplete = true;
-            }
-            
-            updateUI();
         }
 
         function resetTournament() {
@@ -737,6 +846,7 @@
             matches = [];
             tournamentStarted = false;
             tournamentComplete = false;
+            roundHistory = [];
             
             document.getElementById('setup-phase').classList.remove('hidden');
             document.getElementById('tournament-phase').classList.add('hidden');
