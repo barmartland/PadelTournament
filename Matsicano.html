@@ -839,23 +839,14 @@
             if (tournamentPhase === 'americano') {
                 const maxAmericanoRounds = playerCount === 4 ? 3 : 7;
                 if (currentRound >= maxAmericanoRounds) {
-                    // Check if Americano is actually complete
-                    const nextMatches = generateAmericanoMatches();
-                    if (nextMatches.length === 0) {
-                        showPhaseTransition();
-                        return;
-                    }
+                    // Americano phase complete - show transition
+                    showPhaseTransition();
+                    return;
                 }
             }
             
             currentRound++;
             matches = generateRoundMatches();
-            
-            if (tournamentPhase === 'americano' && matches.length === 0) {
-                showPhaseTransition();
-                return;
-            }
-            
             updateUI();
         }
 
