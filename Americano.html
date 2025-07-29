@@ -300,9 +300,17 @@
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h2 id="round-header">Round 1 of 3</h2>
-                    <button id="reset-tournament" class="btn btn-secondary">
-                        🔄 Reset
-                    </button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="back-round" class="btn btn-secondary btn-small hidden">
+                            ← Back
+                        </button>
+                        <button id="home-button" class="btn btn-secondary btn-small">
+                            🏠 Home
+                        </button>
+                        <button id="reset-tournament" class="btn btn-secondary">
+                            🔄 Reset
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -315,6 +323,9 @@
                     </div>
                     <button id="complete-round" class="btn btn-primary hidden" style="width: 100%; margin-top: 1rem;">
                         ✅ Complete All Matches
+                    </button>
+                    <button id="complete-round" class="btn btn-primary hidden" style="width: 100%; margin-top: 1rem;">
+                        ✅ Complete Round & Update Points
                     </button>
                     <button id="next-round" class="btn btn-primary hidden" style="width: 100%; margin-top: 1rem;">
                         Next Round
@@ -349,6 +360,7 @@
         let matches = [];
         let tournamentStarted = false;
         let tournamentComplete = false;
+        let roundHistory = []; // Store history for back functionality
 
         // Initialize the app
         function init() {
@@ -495,7 +507,9 @@
                                 team2: bestOpponentPair,
                                 team1Score: 0,
                                 team2Score: 0,
-                                completed: false
+                                pointsAwarded: false,
+                                team1PointsAwarded: 0,
+                                team2PointsAwarded: 0
                             });
                             
                             partnership.forEach(id => usedPlayers.add(id));

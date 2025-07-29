@@ -312,9 +312,17 @@
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h2 id="round-header">Round 1</h2>
-                    <button id="reset-tournament" class="btn btn-secondary">
-                        🔄 Reset
-                    </button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="back-round" class="btn btn-secondary btn-small hidden">
+                            ← Back
+                        </button>
+                        <button id="home-button" class="btn btn-secondary btn-small">
+                            🏠 Home
+                        </button>
+                        <button id="reset-tournament" class="btn btn-secondary">
+                            🔄 Reset
+                        </button>
+                    </div>
                 </div>
                 <div id="pairing-explanation" class="pairing-explanation">
                     <!-- Pairing explanation will be shown here -->
@@ -329,7 +337,7 @@
                         <!-- Matches will be generated here -->
                     </div>
                     <button id="complete-round" class="btn btn-primary hidden" style="width: 100%; margin-top: 1rem;">
-                        ✅ Complete All Matches
+                        ✅ Complete Round & Update Points
                     </button>
                     <button id="next-round" class="btn btn-primary hidden" style="width: 100%; margin-top: 1rem;">
                         Next Round
@@ -364,6 +372,7 @@
         let matches = [];
         let tournamentStarted = false;
         let maxRounds = 10; // Can continue indefinitely
+        let roundHistory = []; // Store history for back functionality
 
         // Initialize the app
         function init() {
@@ -381,6 +390,16 @@
             document.getElementById('reset-tournament').addEventListener('click', resetTournament);
             document.getElementById('complete-round').addEventListener('click', completeAllMatches);
             document.getElementById('next-round').addEventListener('click', nextRound);
+            document.getElementById('back-round').addEventListener('click', goBackRound);
+            document.getElementById('home-button').addEventListener('click', goHome);
+            
+            // Prevent browser back button from losing data
+            window.addEventListener('beforeunload', (e) => {
+                if (tournamentStarted) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
         }
 
         function generatePlayerInputs() {
@@ -437,7 +456,9 @@
                         team2: [shuffledPlayers[2], shuffledPlayers[3]],
                         team1Score: 0,
                         team2Score: 0,
-                        completed: false
+                        pointsAwarded: false,
+                        team1PointsAwarded: 0,
+                        team2PointsAwarded: 0
                     });
                 } else {
                     // 8 players: 2 matches
@@ -447,7 +468,9 @@
                         team2: [shuffledPlayers[2], shuffledPlayers[3]],
                         team1Score: 0,
                         team2Score: 0,
-                        completed: false
+                        pointsAwarded: false,
+                        team1PointsAwarded: 0,
+                        team2PointsAwarded: 0
                     });
                     roundMatches.push({
                         id: `round-${currentRound}-match-1`,
@@ -455,7 +478,9 @@
                         team2: [shuffledPlayers[6], shuffledPlayers[7]],
                         team1Score: 0,
                         team2Score: 0,
-                        completed: false
+                        pointsAwarded: false,
+                        team1PointsAwarded: 0,
+                        team2PointsAwarded: 0
                     });
                 }
             } else {
@@ -470,7 +495,9 @@
                         team2: [sortedPlayers[1].id, sortedPlayers[3].id],
                         team1Score: 0,
                         team2Score: 0,
-                        completed: false
+                        pointsAwarded: false,
+                        team1PointsAwarded: 0,
+                        team2PointsAwarded: 0
                     });
                 } else {
                     // 8 players: 1st&3rd vs 2nd&4th, 5th&7th vs 6th&8th
@@ -522,8 +549,118 @@
                 explanation.textContent = pairingText;
             }
             
+            // Show/hide back button
+            const backBtn = document.getElementById('back-round');
+            if (roundHistory.length > 0) {
+                backBtn.classList.remove('hidden');
+            } else {
+                backBtn.classList.add('hidden');
+            }
+            
             renderMatches();
             renderLeaderboard();
+        }
+
+        function renderMatches() {
+            const container = document.getElementById('matches-container');
+            container.innerHTML = '';
+
+            matches.forEach(match => {
+                const matchDiv = document.createElement('div');
+                const totalScore = match.team1Score + match.team2Score;
+                const hasError = totalScore > 21;
+                const isIncomplete = totalScore < 21 && totalScore > 0;
+                
+                let className = 'match-card';
+                if (hasError) className += ' error';
+                else if (isIncomplete) className += ' incomplete';
+                
+                matchDiv.className = className;
+                
+                const team1Names = `${players.find(p => p.id === match.team1[0]).name} & ${players.find(p => p.id === match.team1[1]).name}`;
+                const team2Names = `${players.find(p => p.id === match.team2[0]).name} & ${players.find(p => p.id === match.team2[1]).name}`;
+                
+                let statusMessage = '';
+                if (hasError) {
+                    statusMessage = '<div class="error-message">⚠️ Total score cannot exceed 21 points</div>';
+                } else if (isIncomplete) {
+                    const remaining = 21 - totalScore;
+                    statusMessage = `<div class="info-message">ℹ️ Need ${remaining} more point${remaining === 1 ? '' : 's'} to reach 21</div>`;
+                }
+                
+                matchDiv.innerHTML = `
+                    <div class="match-teams">
+                        <div>${team1Names}</div>
+                        <div class="match-vs">VS</div>
+                        <div>${team2Names}</div>
+                    </div>
+                    <div class="match-score">
+                        <div class="score-inputs">
+                            <input type="number" class="score-input" min="0" max="21"
+                                   value="${match.team1Score || ''}" 
+                                   placeholder="0"
+                                   onchange="updateMatchScore('${match.id}', 'team1', this.value)">
+                            <span>-</span>
+                            <input type="number" class="score-input" min="0" max="21"
+                                   value="${match.team2Score || ''}" 
+                                   placeholder="0"
+                                   onchange="updateMatchScore('${match.id}', 'team2', this.value)">
+                        </div>
+                        ${match.pointsAwarded ? 
+                            '<span style="color: #10b981; font-weight: 500;">✅ Points Awarded</span>' :
+                            ''
+                        }
+                    </div>
+                    ${statusMessage}
+                `;
+                
+                container.appendChild(matchDiv);
+            });
+
+            // Show complete round or next round button
+            const allMatchesHaveScores = matches.every(match => match.team1Score + match.team2Score === 21);
+            const hasErrors = matches.some(match => match.team1Score + match.team2Score > 21);
+            const allPointsAwarded = matches.every(match => match.pointsAwarded);
+            const completeRoundBtn = document.getElementById('complete-round');
+            const nextRoundBtn = document.getElementById('next-round');
+            
+            if (allPointsAwarded) {
+                completeRoundBtn.classList.add('hidden');
+                nextRoundBtn.classList.remove('hidden');
+            } else if (allMatchesHaveScores && !hasErrors) {
+                completeRoundBtn.classList.remove('hidden');
+                nextRoundBtn.classList.add('hidden');
+            } else {
+                completeRoundBtn.classList.add('hidden');
+                nextRoundBtn.classList.add('hidden');
+            }
+        }
+
+        function renderLeaderboard() {
+            const container = document.getElementById('leaderboard-container');
+            const sortedPlayers = [...players].sort((a, b) => b.totalPoints - a.totalPoints);
+            
+            container.innerHTML = '';
+            
+            sortedPlayers.forEach((player, index) => {
+                const div = document.createElement('div');
+                let className = 'leaderboard-item ';
+                if (index === 0) className += 'first';
+                else if (index === 1) className += 'second';
+                else if (index === 2) className += 'third';
+                else className += 'other';
+                
+                div.className = className;
+                div.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span class="player-rank">#${index + 1}</span>
+                        <span style="font-weight: 500;">${player.name}</span>
+                    </div>
+                    <span class="player-points">${player.totalPoints}</span>
+                `;
+                
+                container.appendChild(div);
+            });
         }
 
         function renderMatches() {
@@ -628,18 +765,84 @@
             });
         }
 
+        function saveRoundState() {
+            roundHistory.push({
+                round: currentRound,
+                players: JSON.parse(JSON.stringify(players)),
+                matches: JSON.parse(JSON.stringify(matches))
+            });
+        }
+
         function updateMatchScore(matchId, team, score) {
             const match = matches.find(m => m.id === matchId);
-            if (match && !match.completed) {
-                match[`${team}Score`] = Math.max(0, parseInt(score) || 0);
+            if (match) {
+                const newScore = Math.max(0, parseInt(score) || 0);
+                const oldScore = match[`${team}Score`];
+                match[`${team}Score`] = newScore;
+                
+                // Auto-populate the other team's score if this score is valid and changed
+                if (newScore !== oldScore && newScore > 0 && newScore <= 21) {
+                    const otherTeam = team === 'team1' ? 'team2' : 'team1';
+                    const remainingPoints = 21 - newScore;
+                    if (remainingPoints >= 0) {
+                        match[`${otherTeam}Score`] = remainingPoints;
+                    }
+                }
+                
+                // If points were already awarded, update player points immediately
+                if (match.pointsAwarded) {
+                    updatePlayerPointsForMatch(match);
+                }
+                
                 renderMatches();
+                renderLeaderboard();
             }
         }
 
+        function updatePlayerPointsForMatch(match) {
+            // First, subtract the previously awarded points
+            players.forEach(player => {
+                if (match.team1.includes(player.id)) {
+                    player.totalPoints -= match.team1PointsAwarded;
+                } else if (match.team2.includes(player.id)) {
+                    player.totalPoints -= match.team2PointsAwarded;
+                }
+            });
+            
+            // Then add the new points
+            match.team1PointsAwarded = match.team1Score;
+            match.team2PointsAwarded = match.team2Score;
+            
+            players.forEach(player => {
+                if (match.team1.includes(player.id)) {
+                    player.totalPoints += match.team1PointsAwarded;
+                } else if (match.team2.includes(player.id)) {
+                    player.totalPoints += match.team2PointsAwarded;
+                }
+            });
+        }
+
         function completeAllMatches() {
+            let allValid = true;
+            
+            // Check if all matches have valid scores
             matches.forEach(match => {
-                if (!match.completed && match.team1Score + match.team2Score === 21) {
-                    // Update player points
+                if (match.team1Score + match.team2Score !== 21) {
+                    allValid = false;
+                }
+            });
+            
+            if (!allValid) {
+                alert('Please ensure all matches have scores that total exactly 21 points.');
+                return;
+            }
+
+            matches.forEach(match => {
+                if (!match.pointsAwarded && match.team1Score + match.team2Score === 21) {
+                    // Award points
+                    match.team1PointsAwarded = match.team1Score;
+                    match.team2PointsAwarded = match.team2Score;
+                    
                     players.forEach(player => {
                         if (match.team1.includes(player.id)) {
                             player.totalPoints += match.team1Score;
@@ -647,16 +850,40 @@
                             player.totalPoints += match.team2Score;
                         }
                     });
-                    match.completed = true;
+                    match.pointsAwarded = true;
                 }
             });
             updateUI();
         }
 
         function nextRound() {
+            // Save current state before moving to next round
+            saveRoundState();
+            
             currentRound++;
             matches = generateRoundMatches();
             updateUI();
+        }
+
+        function goBackRound() {
+            if (roundHistory.length === 0) return;
+            
+            if (confirm('Are you sure you want to go back to the previous round? Current round progress will be lost.')) {
+                const previousState = roundHistory.pop();
+                currentRound = previousState.round;
+                players = previousState.players;
+                matches = previousState.matches;
+                
+                updateUI();
+            }
+        }
+
+        function goHome() {
+            if (tournamentStarted && confirm('Are you sure you want to return to home? All tournament progress will be lost.')) {
+                window.location.href = 'index.html';
+            } else if (!tournamentStarted) {
+                window.location.href = 'index.html';
+            }
         }
 
         function resetTournament() {
@@ -665,6 +892,7 @@
             currentRound = 0;
             matches = [];
             tournamentStarted = false;
+            roundHistory = [];
             
             document.getElementById('setup-phase').classList.remove('hidden');
             document.getElementById('tournament-phase').classList.add('hidden');
