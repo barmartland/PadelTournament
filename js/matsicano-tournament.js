@@ -245,13 +245,19 @@ class MatsicanoTournament extends TournamentEngine {
     }
 
     updateRoundHeader() {
-        const phaseText = this.americanoPhase ? "Americano Phase" : "Mexicano Phase";
-        document.getElementById('round-header').textContent = `Round ${this.currentRound} - ${phaseText}`;
+        if (this.tournamentComplete) {
+            document.getElementById('round-header').textContent = `Tournament Complete - Final Results`;
+        } else {
+            const phaseText = this.americanoPhase ? "Americano Phase" : "Mexicano Phase";
+            document.getElementById('round-header').textContent = `Round ${this.currentRound} - ${phaseText}`;
+        }
         
         // Update pairing explanation
         const explanation = document.getElementById('pairing-explanation');
         if (explanation) {
-            if (this.americanoPhase) {
+            if (this.tournamentComplete) {
+                explanation.textContent = "🏁 Tournament ended. Final standings displayed below.";
+            } else if (this.americanoPhase) {
                 explanation.innerHTML = `
                     <strong>🔄 Americano Phase:</strong> Everyone partners with everyone else exactly once to establish initial rankings.
                 `;

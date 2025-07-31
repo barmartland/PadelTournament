@@ -40,9 +40,11 @@ class TournamentEngine {
         
         const backBtn = document.getElementById('back-round');
         const homeBtn = document.getElementById('home-button');
+        const endBtn = document.getElementById('end-tournament');
         
         if (backBtn) backBtn.addEventListener('click', () => this.goBackRound());
         if (homeBtn) homeBtn.addEventListener('click', () => this.goHome());
+        if (endBtn) endBtn.addEventListener('click', () => this.endTournament());
         
         // Prevent browser back button from losing data
         window.addEventListener('beforeunload', (e) => {
@@ -272,6 +274,13 @@ class TournamentEngine {
         }
     }
 
+    endTournament() {
+        if (confirm('Are you sure you want to end the tournament? Current standings will be the final results.')) {
+            this.tournamentComplete = true;
+            this.updateUI();
+        }
+    }
+
     resetTournament() {
         this.playerCount = parseInt(document.getElementById('player-count').value);
         this.matchPoints = parseInt(document.getElementById('match-points').value);
@@ -315,6 +324,9 @@ class TournamentEngine {
                 statusMessage = `<div class="info-message">ℹ️ Need ${remaining} more point${remaining === 1 ? '' : 's'} to reach ${this.matchPoints}</div>`;
             }
             
+            // Disable inputs if tournament is complete
+            const inputDisabled = this.tournamentComplete || match.pointsAwarded;
+            
             matchDiv.innerHTML = `
                 <div class="match-teams">
                     <div>${team1Names}</div>
@@ -326,16 +338,18 @@ class TournamentEngine {
                         <input type="number" class="score-input" min="0" max="${this.matchPoints}"
                                value="${match.team1Score || ''}" 
                                placeholder="0"
+                               ${inputDisabled ? 'disabled' : ''}
                                onchange="tournament.updateMatchScore('${match.id}', 'team1', this.value)">
                         <span>-</span>
                         <input type="number" class="score-input" min="0" max="${this.matchPoints}"
                                value="${match.team2Score || ''}" 
                                placeholder="0"
+                               ${inputDisabled ? 'disabled' : ''}
                                onchange="tournament.updateMatchScore('${match.id}', 'team2', this.value)">
                     </div>
                     ${match.pointsAwarded ? 
                         '<span style="color: #10b981; font-weight: 500;">✅ Points Awarded</span>' :
-                        ''
+                        (this.tournamentComplete ? '<span style="color: #f59e0b; font-weight: 500;">🏁 Tournament Ended</span>' : '')
                     }
                 </div>
                 ${statusMessage}
@@ -361,6 +375,18 @@ class TournamentEngine {
             completeRoundBtn.classList.add('hidden');
             nextRoundBtn.classList.add('hidden');
         }
+
+        // Hide buttons if tournament is complete
+        if (this.tournamentComplete) {
+            nextRoundBtn.classList.add('hidden');
+            completeRoundBtn.classList.add('hidden');
+            
+            // Also hide End Tournament button
+            const endBtn = document.getElementById('end-tournament');
+            if (endBtn) {
+                endBtn.style.display = 'none';
+            }
+        }
     }
 
     renderLeaderboard() {
@@ -369,32 +395,62 @@ class TournamentEngine {
         
         container.innerHTML = '';
         
+        // Track positions considering ties
+        let currentRank = 1;
+        let previousScore = null;
+        
         sortedPlayers.forEach((player, index) => {
             const div = document.createElement('div');
+            
+            // Update rank only if score is different from previous
+            if (previousScore !== null && player.totalPoints !== previousScore) {
+                currentRank = index + 1;
+            }
+            
+            // Determine styling - tied players get same styling
             let className = 'leaderboard-item ';
-            if (index === 0) className += 'first';
-            else if (index === 1) className += 'second';
-            else if (index === 2) className += 'third';
+            if (currentRank === 1) className += 'first';
+            else if (currentRank === 2) className += 'second';
+            else if (currentRank === 3) className += 'third';
             else className += 'other';
             
             div.className = className;
             div.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 1rem;">
-                    <span class="player-rank">#${index + 1}</span>
+                    <span class="player-rank">#${currentRank}${player.totalPoints === sortedPlayers[0].totalPoints && sortedPlayers.filter(p => p.totalPoints === sortedPlayers[0].totalPoints).length > 1 ? ' (tied)' : ''}</span>
                     <span style="font-weight: 500;">${player.name}</span>
                 </div>
                 <span class="player-points">${player.totalPoints}</span>
             `;
             
             container.appendChild(div);
+            previousScore = player.totalPoints;
         });
         
         // Show winner banner if tournament is complete
         if (this.tournamentComplete && sortedPlayers.length > 0) {
             const winnerBanner = document.getElementById('winner-banner');
             if (winnerBanner) {
-                document.getElementById('winner-name').textContent = sortedPlayers[0].name;
-                document.getElementById('winner-score').textContent = sortedPlayers[0].totalPoints;
+                const highestScore = sortedPlayers[0].totalPoints;
+                const winners = sortedPlayers.filter(player => player.totalPoints === highestScore);
+                
+                const winnerNameElement = document.getElementById('winner-name');
+                const winnerScoreElement = document.getElementById('winner-score');
+                
+                if (winners.length === 1) {
+                    // Single winner
+                    winnerNameElement.textContent = winners[0].name;
+                    winnerBanner.querySelector('div:nth-child(2)').innerHTML = 
+                        `<span style="font-size: 1.5rem; font-weight: bold; color: #10b981; margin-bottom: 0.5rem;">Tournament Winner: <span id="winner-name">${winners[0].name}</span>!</span>`;
+                } else {
+                    // Multiple winners (tie)
+                    const winnerNames = winners.map(w => w.name).join(' & ');
+                    winnerNameElement.textContent = winnerNames;
+                    winnerBanner.querySelector('div:nth-child(2)').innerHTML = 
+                        `<span style="font-size: 1.5rem; font-weight: bold; color: #10b981; margin-bottom: 0.5rem;">Tournament Winners (Tie): <span id="winner-name">${winnerNames}</span>!</span>`;
+                }
+                
+                winnerScoreElement.textContent = highestScore;
                 winnerBanner.classList.remove('hidden');
             }
         } else {

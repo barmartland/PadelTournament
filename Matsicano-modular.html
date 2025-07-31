@@ -160,6 +160,9 @@
                         <button id="home-button" class="btn btn-secondary btn-small">
                             🏠 Home
                         </button>
+                        <button id="end-tournament" class="btn btn-secondary btn-small" style="display: none;">
+                            🏁 End Tournament
+                        </button>
                         <button id="reset-tournament" class="btn btn-secondary">
                             🔄 Reset
                         </button>
@@ -229,6 +232,9 @@
             // Update phase indicator
             document.getElementById('phase-indicator').textContent = 'Mexicano Phase';
             document.getElementById('phase-indicator').className = 'phase-indicator mexicano-phase';
+            
+            // Show End Tournament button in Mexicano phase
+            document.getElementById('end-tournament').style.display = 'inline-flex';
             
             // Generate first Mexicano round
             this.currentRound = 1;

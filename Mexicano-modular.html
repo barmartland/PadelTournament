@@ -61,6 +61,9 @@
                         <button id="home-button" class="btn btn-secondary btn-small">
                             🏠 Home
                         </button>
+                        <button id="end-tournament" class="btn btn-secondary btn-small">
+                            🏁 End Tournament
+                        </button>
                         <button id="reset-tournament" class="btn btn-secondary">
                             🔄 Reset
                         </button>
@@ -91,6 +94,15 @@
                     <h2>🏆 Current Rankings</h2>
                     <div id="leaderboard-container">
                         <!-- Leaderboard will be generated here -->
+                    </div>
+                    <div id="winner-banner" class="winner-banner hidden">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎉</div>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #10b981; margin-bottom: 0.5rem;">
+                            Tournament Winner: <span id="winner-name"></span>!
+                        </div>
+                        <div style="color: #059669;">
+                            Final Score: <span id="winner-score"></span> points
+                        </div>
                     </div>
                 </div>
             </div>

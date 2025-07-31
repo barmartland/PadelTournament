@@ -108,12 +108,17 @@ class MexicanoTournament extends TournamentEngine {
     }
 
     updateRoundHeader() {
-        document.getElementById('round-header').textContent = `Round ${this.currentRound}`;
+        const headerText = this.tournamentComplete ? 
+            `Tournament Complete - Final Results` : 
+            `Round ${this.currentRound}`;
+        document.getElementById('round-header').textContent = headerText;
         
         // Update pairing explanation
         const explanation = document.getElementById('pairing-explanation');
         if (explanation) {
-            if (this.currentRound === 1) {
+            if (this.tournamentComplete) {
+                explanation.textContent = "🏁 Tournament ended. Final standings displayed below.";
+            } else if (this.currentRound === 1) {
                 explanation.textContent = "🎲 First round: Players are paired randomly to establish initial rankings.";
             } else {
                 const pairingText = this.playerCount === 4 
