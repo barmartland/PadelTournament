@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Padel Matsicano Tournament</title>
+    <link rel="stylesheet" href="styles/tournament-styles.css">
+    <style>
+        /* Matsicano-specific styles */
+        .phase-indicator {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-left: 1rem;
+        }
+        
+        .americano-phase {
+            background: #10b981;
+            color: white;
+        }
+        
+        .mexicano-phase {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .phase-transition {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            border: 3px solid #d97706;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: center;
+            color: white;
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3);
+        }
+        
+        .phase-transition h3 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .phase-transition p {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.95;
+        }
+        
+        .matsicano-info {
+            background: #f0f9ff;
+            border: 2px solid #3b82f6;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .matsicano-info h3 {
+            color: #1e40af;
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+        
+        .matsicano-info ul {
+            color: #1e40af;
+            padding-left: 1.5rem;
+            line-height: 1.6;
+        }
+        
+        @media (max-width: 768px) {
+            .phase-transition {
+                padding: 1.5rem;
+            }
+            
+            .phase-transition h3 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎯 Padel Matsicano Tournament</h1>
+            <p>First Americano, then Mexicano • Individual scoring • Trademark: Mats T.</p>
+        </div>
+
+        <!-- Setup Phase -->
+        <div id="setup-phase" class="card">
+            <h2>Tournament Setup</h2>
+            
+            <div class="setup-grid">
+                <div class="form-group">
+                    <label for="player-count">Number of Players</label>
+                    <select id="player-count">
+                        <option value="4">4 Players</option>
+                        <option value="8">8 Players</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="match-points">Points per Match</label>
+                    <select id="match-points">
+                        <option value="8">8 points</option>
+                        <option value="16">16 points</option>
+                        <option value="21" selected>21 points (standard)</option>
+                        <option value="24">24 points</option>
+                        <option value="32">32 points</option>
+                        <option value="40">40 points</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="player-inputs" class="setup-grid">
+                <!-- Player inputs will be generated here -->
+            </div>
+
+            <div class="matsicano-info">
+                <h3>How Matsicano Works:</h3>
+                <ul>
+                    <li><strong>Phase 1 - Americano:</strong> Everyone partners with everyone else exactly once</li>
+                    <li><strong>Phase 2 - Mexicano:</strong> Rank-based pairing continues indefinitely</li>
+                    <li>Individual scoring throughout both phases</li>
+                    <li>Perfect blend of fair partnerships and competitive ranking</li>
+                </ul>
+            </div>
+
+            <button id="start-tournament" class="btn btn-primary" style="width: 100%;">
+                ▶️ Start Matsicano Tournament
+            </button>
+        </div>
+
+        <!-- Phase Transition Banner -->
+        <div id="phase-transition" class="phase-transition hidden">
+            <h3>🎉 Americano Phase Complete! 🎉</h3>
+            <p>Final Americano standings established. Now entering Mexicano phase with rank-based pairing!</p>
+            <div id="americano-final-standings">
+                <!-- Final standings will be shown here -->
+            </div>
+            <button id="start-mexicano" class="btn btn-primary" style="background: white; color: #f59e0b; border: 2px solid white; margin-top: 1rem;">
+                🌮 Start Mexicano Phase
+            </button>
+        </div>
+
+        <!-- Tournament Phase -->
+        <div id="tournament-phase" class="hidden">
+            <!-- Round Header -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 id="round-header">Round 1 - Americano Phase</h2>
+                        <span id="phase-indicator" class="phase-indicator americano-phase">Americano Phase</span>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="back-round" class="btn btn-secondary btn-small hidden">
+                            ← Back
+                        </button>
+                        <button id="home-button" class="btn btn-secondary btn-small">
+                            🏠 Home
+                        </button>
+                        <button id="reset-tournament" class="btn btn-secondary">
+                            🔄 Reset
+                        </button>
+                    </div>
+                </div>
+                <div id="pairing-explanation" class="pairing-explanation">
+                    <strong>🔄 Americano Phase:</strong> Everyone partners with everyone else exactly once to establish initial rankings.
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- Matches -->
+                <div class="card">
+                    <h2>Current Matches</h2>
+                    <div id="matches-container">
+                        <!-- Matches will be generated here -->
+                    </div>
+                    <button id="complete-round" class="btn btn-primary hidden" style="width: 100%; margin-top: 1rem;">
+                        ✅ Complete Round & Update Points
+                    </button>
+                    <button id="next-round" class="btn btn-primary hidden" style="width: 100%; margin-top: 1rem;">
+                        Next Round
+                    </button>
+                </div>
+
+                <!-- Leaderboard -->
+                <div class="card">
+                    <h2>🏆 Current Rankings</h2>
+                    <div id="leaderboard-container">
+                        <!-- Leaderboard will be generated here -->
+                    </div>
+                    <div id="winner-banner" class="winner-banner hidden">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎉</div>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #10b981; margin-bottom: 0.5rem;">
+                            Current Leader: <span id="winner-name"></span>!
+                        </div>
+                        <div style="color: #059669;">
+                            Score: <span id="winner-score"></span> points
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/tournament-engine.js"></script>
+    <script src="js/matsicano-tournament.js"></script>
+    <script>
+        // Initialize the Matsicano tournament
+        let tournament;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            tournament = new MatsicanoTournament();
+            
+            // Add custom event listener for phase transition
+            document.getElementById('start-mexicano').addEventListener('click', () => {
+                tournament.startMexicanoPhase();
+            });
+        });
+        
+        // Add phase transition functionality to the tournament
+        MatsicanoTournament.prototype.startMexicanoPhase = function() {
+            // Hide transition banner and show tournament phase
+            document.getElementById('phase-transition').classList.add('hidden');
+            document.getElementById('tournament-phase').classList.remove('hidden');
+            
+            // Update phase indicator
+            document.getElementById('phase-indicator').textContent = 'Mexicano Phase';
+            document.getElementById('phase-indicator').className = 'phase-indicator mexicano-phase';
+            
+            // Generate first Mexicano round
+            this.currentRound = 1;
+            this.matches = this.generateRoundMatches();
+            this.updateUI();
+        };
+
+        // Override nextRound to show phase transition when Americano completes
+        MatsicanoTournament.prototype.nextRound = function() {
+            // Save current state before moving to next round
+            this.saveRoundState();
+            
+            // Simple check: Americano phase ends after fixed number of rounds
+            if (this.americanoPhase) {
+                const maxAmericanoRounds = this.playerCount === 4 ? 3 : 7;
+                
+                if (this.currentRound >= maxAmericanoRounds) {
+                    // Americano phase complete - show transition
+                    this.americanoPhase = false;
+                    this.americanoRoundCompleted = true;
+                    this.showPhaseTransition();
+                    return;
+                }
+            }
+            
+            this.currentRound++;
+            this.matches = this.generateRoundMatches();
+            
+            if (this.matches.length === 0) {
+                this.tournamentComplete = true;
+            }
+            
+            this.updateUI();
+        };
+
+        // Add showPhaseTransition method
+        MatsicanoTournament.prototype.showPhaseTransition = function() {
+            const sortedPlayers = [...this.players].sort((a, b) => b.totalPoints - a.totalPoints);
+            const standingsHtml = sortedPlayers.map((player, index) => 
+                `<div style="background: rgba(255,255,255,0.2); margin: 0.5rem 0; padding: 0.5rem 1rem; border-radius: 8px; display: flex; justify-content: space-between;">
+                    <span>#${index + 1} ${player.name}</span>
+                    <span style="font-weight: bold;">${player.totalPoints} points</span>
+                </div>`
+            ).join('');
+            
+            document.getElementById('americano-final-standings').innerHTML = standingsHtml;
+            document.getElementById('phase-transition').classList.remove('hidden');
+            document.getElementById('tournament-phase').classList.add('hidden');
+        };
+
+        // Helper method for partnerships
+        MatsicanoTournament.prototype.generatePartnerships = function(playerIds) {
+            const partnerships = [];
+            for (let i = 0; i < playerIds.length; i++) {
+                for (let j = i + 1; j < playerIds.length; j++) {
+                    partnerships.push([playerIds[i], playerIds[j]]);
+                }
+            }
+            return partnerships;
+        };
+    </script>
+</body>
+</html>

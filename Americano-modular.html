@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Padel Americano Tournament</title>
+    <link rel="stylesheet" href="styles/tournament-styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔄 Padel Americano Tournament</h1>
+            <p>Everyone partners with everyone • Individual scoring • Fair rotation</p>
+        </div>
+
+        <!-- Setup Phase -->
+        <div id="setup-phase" class="card">
+            <h2>Tournament Setup</h2>
+            
+            <div class="setup-grid">
+                <div class="form-group">
+                    <label for="player-count">Number of Players</label>
+                    <select id="player-count">
+                        <option value="4">4 Players (3 rounds)</option>
+                        <option value="8">8 Players (7 rounds)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="match-points">Points per Match</label>
+                    <select id="match-points">
+                        <option value="8">8 points</option>
+                        <option value="16">16 points</option>
+                        <option value="21" selected>21 points (standard)</option>
+                        <option value="24">24 points</option>
+                        <option value="32">32 points</option>
+                        <option value="40">40 points</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="player-inputs" class="setup-grid">
+                <!-- Player inputs will be generated here -->
+            </div>
+
+            <button id="start-tournament" class="btn btn-primary" style="width: 100%;">
+                ▶️ Start Americano Tournament
+            </button>
+        </div>
+
+        <!-- Tournament Phase -->
+        <div id="tournament-phase" class="hidden">
+            <!-- Round Header -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 id="round-header">Round 1 of 3</h2>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="back-round" class="btn btn-secondary btn-small hidden">
+                            ← Back
+                        </button>
+                        <button id="home-button" class="btn btn-secondary btn-small">
+                            🏠 Home
+                        </button>
+                        <button id="reset-tournament" class="btn btn-secondary">
+                            🔄 Reset
+                        </button>
+                    </div>
+                </div>
+                <div class="pairing-explanation">
+                    🔄 Americano: Everyone partners with everyone else exactly once.
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- Matches -->
+                <div class="card">
+                    <h2>Current Matches</h2>
+                    <div id="matches-container">
+                        <!-- Matches will be generated here -->
+                    </div>
+                    <button id="complete-round" class="btn btn-primary hidden" style="width: 100%; margin-top: 1rem;">
+                        ✅ Complete Round & Update Points
+                    </button>
+                    <button id="next-round" class="btn btn-primary hidden" style="width: 100%; margin-top: 1rem;">
+                        Next Round
+                    </button>
+                </div>
+
+                <!-- Leaderboard -->
+                <div class="card">
+                    <h2>🏆 Leaderboard</h2>
+                    <div id="leaderboard-container">
+                        <!-- Leaderboard will be generated here -->
+                    </div>
+                    <div id="winner-banner" class="winner-banner hidden">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎉</div>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #10b981; margin-bottom: 0.5rem;">
+                            Winner: <span id="winner-name"></span>!
+                        </div>
+                        <div style="color: #059669;">
+                            Final Score: <span id="winner-score"></span> points
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/tournament-engine.js"></script>
+    <script src="js/americano-tournament.js"></script>
+    <script>
+        // Initialize the Americano tournament
+        let tournament;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            tournament = new AmericanoTournament();
+        });
+    </script>
+</body>
+</html>
