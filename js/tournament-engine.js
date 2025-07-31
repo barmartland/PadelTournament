@@ -294,6 +294,12 @@ class TournamentEngine {
         document.getElementById('setup-phase').classList.remove('hidden');
         document.getElementById('tournament-phase').classList.add('hidden');
         
+        // Restore End Tournament button visibility for tournaments that support it
+        const endBtn = document.getElementById('end-tournament');
+        if (endBtn && (this.tournamentType === 'mexicano' || this.tournamentType === 'matsicano')) {
+            endBtn.style.display = '';
+        }
+        
         this.generatePlayerInputs();
     }
 
