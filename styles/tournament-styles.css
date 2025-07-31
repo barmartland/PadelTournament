@@ -287,6 +287,21 @@ body {
     display: none;
 }
 
+/* Button Container */
+.button-container {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Round Header */
+.round-header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .grid-2 {
@@ -304,5 +319,37 @@ body {
     
     .header h1 {
         font-size: 2rem;
+    }
+    
+    /* Mobile button layout */
+    .round-header-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .button-container {
+        justify-content: center;
+        gap: 0.25rem;
+    }
+    
+    .btn-small {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.75rem;
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .btn {
+        font-size: 0.875rem;
+    }
+    
+    /* Allow button text to wrap on mobile */
+    .button-container .btn {
+        flex-shrink: 1;
+        white-space: normal;
+        text-align: center;
+        line-height: 1.2;
+        min-height: 2.5rem;
     }
 }
