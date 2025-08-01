@@ -225,18 +225,40 @@ class MatsicanoTournament extends TournamentEngine {
     }
 
     nextRound() {
-        // Simple check: Americano phase ends after fixed number of rounds
+        // Check if we need to show phase transition BEFORE calling super
         if (this.americanoPhase) {
             const maxAmericanoRounds = this.playerCount === 4 ? 3 : 7;
             
             if (this.currentRound >= maxAmericanoRounds) {
+                // Mark transition but don't return - continue with normal round progression
                 this.americanoPhase = false;
                 this.americanoRoundCompleted = true;
+                
+                // Call base class nextRound first to handle round progression
+                super.nextRound();
+                
+                // Then show phase transition UI
+                this.showPhaseTransition();
+                return;
             }
         }
         
-        // Continue with normal next round logic
+        // Normal round progression
         super.nextRound();
+    }
+
+    showPhaseTransition() {
+        const sortedPlayers = [...this.players].sort((a, b) => b.totalPoints - a.totalPoints);
+        const standingsHtml = sortedPlayers.map((player, index) => 
+            `<div style="background: rgba(255,255,255,0.2); margin: 0.5rem 0; padding: 0.5rem 1rem; border-radius: 8px; display: flex; justify-content: space-between;">
+                <span>#${index + 1} ${player.name}</span>
+                <span style="font-weight: bold;">${player.totalPoints} points</span>
+            </div>`
+        ).join('');
+        
+        document.getElementById('americano-final-standings').innerHTML = standingsHtml;
+        document.getElementById('phase-transition').classList.remove('hidden');
+        document.getElementById('tournament-phase').classList.add('hidden');
     }
 
     shouldEndTournament() {
@@ -248,7 +270,10 @@ class MatsicanoTournament extends TournamentEngine {
         if (this.tournamentComplete) {
             document.getElementById('round-header').textContent = `Tournament Complete - Final Results`;
         } else {
-            const phaseText = this.americanoPhase ? "Americano Phase" : "Mexicano Phase";
+            // Determine phase based on round number and player count
+            const maxAmericanoRounds = this.playerCount === 4 ? 3 : 7;
+            const isAmericanoPhase = this.currentRound <= maxAmericanoRounds;
+            const phaseText = isAmericanoPhase ? "Americano Phase" : "Mexicano Phase";
             document.getElementById('round-header').textContent = `Round ${this.currentRound} - ${phaseText}`;
         }
         
@@ -257,15 +282,20 @@ class MatsicanoTournament extends TournamentEngine {
         if (explanation) {
             if (this.tournamentComplete) {
                 explanation.textContent = "🏁 Tournament ended. Final standings displayed below.";
-            } else if (this.americanoPhase) {
-                explanation.innerHTML = `
-                    <strong>🔄 Americano Phase:</strong> Everyone partners with everyone else exactly once to establish initial rankings.
-                `;
             } else {
-                const pairingText = this.playerCount === 4 
-                    ? "🏆 Mexicano Phase: Rank-based pairing - 1st & 3rd place vs 2nd & 4th place"
-                    : "🏆 Mexicano Phase: Rank-based pairing - 1st & 3rd vs 2nd & 4th, 5th & 7th vs 6th & 8th";
-                explanation.innerHTML = `<strong>${pairingText}</strong>`;
+                const maxAmericanoRounds = this.playerCount === 4 ? 3 : 7;
+                const isAmericanoPhase = this.currentRound <= maxAmericanoRounds;
+                
+                if (isAmericanoPhase) {
+                    explanation.innerHTML = `
+                        <strong>🔄 Americano Phase:</strong> Everyone partners with everyone else exactly once to establish initial rankings.
+                    `;
+                } else {
+                    const pairingText = this.playerCount === 4 
+                        ? "🏆 Mexicano Phase: Rank-based pairing - 1st & 3rd place vs 2nd & 4th place"
+                        : "🏆 Mexicano Phase: Rank-based pairing - 1st & 3rd vs 2nd & 4th, 5th & 7th vs 6th & 8th";
+                    explanation.innerHTML = `<strong>${pairingText}</strong>`;
+                }
             }
         }
     }
@@ -276,41 +306,5 @@ class MatsicanoTournament extends TournamentEngine {
         super.resetTournament();
     }
 
-    saveRoundState() {
-        const state = {
-            round: this.currentRound,
-            americanoPhase: this.americanoPhase,
-            americanoRoundCompleted: this.americanoRoundCompleted,
-            players: JSON.parse(JSON.stringify(this.players.map(p => ({
-                ...p,
-                partnerships: Array.from(p.partnerships),
-                opponents: Array.from(p.opponents)
-            })))),
-            matches: JSON.parse(JSON.stringify(this.matches))
-        };
-        this.roundHistory.push(state);
-    }
 
-    goBackRound() {
-        if (this.roundHistory.length === 0) return;
-        
-        if (confirm('Are you sure you want to go back to the previous round? Current round progress will be lost.')) {
-            const previousState = this.roundHistory.pop();
-            this.currentRound = previousState.round;
-            this.americanoPhase = previousState.americanoPhase;
-            this.americanoRoundCompleted = previousState.americanoRoundCompleted;
-            
-            // Restore players state
-            this.players = previousState.players.map(p => ({
-                ...p,
-                partnerships: new Set(p.partnerships),
-                opponents: new Set(p.opponents)
-            }));
-            
-            this.matches = previousState.matches;
-            this.tournamentComplete = false;
-            
-            this.updateUI();
-        }
-    }
 }

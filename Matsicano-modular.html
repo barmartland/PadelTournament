@@ -160,11 +160,11 @@
                         <button id="home-button" class="btn btn-secondary btn-small">
                             🏠 Home
                         </button>
-                        <button id="end-tournament" class="btn btn-secondary btn-small" style="display: none;">
-                            🏁 End Tournament
-                        </button>
-                        <button id="reset-tournament" class="btn btn-secondary">
+                        <button id="reset-tournament" class="btn btn-secondary btn-small">
                             🔄 Reset
+                        </button>
+                        <button id="end-tournament" class="btn btn-primary" style="display: none;">
+                            🏁 End Tournament
                         </button>
                     </div>
                 </div>
@@ -221,6 +221,7 @@
             document.getElementById('start-mexicano').addEventListener('click', () => {
                 tournament.startMexicanoPhase();
             });
+            
         });
         
         // Add phase transition functionality to the tournament
@@ -236,54 +237,12 @@
             // Show End Tournament button in Mexicano phase
             document.getElementById('end-tournament').style.display = 'inline-flex';
             
-            // Generate first Mexicano round
-            this.currentRound = 1;
-            this.matches = this.generateRoundMatches();
+            // Don't reset currentRound - we're already on the correct round from nextRound()
+            // Just update the UI to show the current matches
             this.updateUI();
         };
 
-        // Override nextRound to show phase transition when Americano completes
-        MatsicanoTournament.prototype.nextRound = function() {
-            // Save current state before moving to next round
-            this.saveRoundState();
-            
-            // Simple check: Americano phase ends after fixed number of rounds
-            if (this.americanoPhase) {
-                const maxAmericanoRounds = this.playerCount === 4 ? 3 : 7;
-                
-                if (this.currentRound >= maxAmericanoRounds) {
-                    // Americano phase complete - show transition
-                    this.americanoPhase = false;
-                    this.americanoRoundCompleted = true;
-                    this.showPhaseTransition();
-                    return;
-                }
-            }
-            
-            this.currentRound++;
-            this.matches = this.generateRoundMatches();
-            
-            if (this.matches.length === 0) {
-                this.tournamentComplete = true;
-            }
-            
-            this.updateUI();
-        };
 
-        // Add showPhaseTransition method
-        MatsicanoTournament.prototype.showPhaseTransition = function() {
-            const sortedPlayers = [...this.players].sort((a, b) => b.totalPoints - a.totalPoints);
-            const standingsHtml = sortedPlayers.map((player, index) => 
-                `<div style="background: rgba(255,255,255,0.2); margin: 0.5rem 0; padding: 0.5rem 1rem; border-radius: 8px; display: flex; justify-content: space-between;">
-                    <span>#${index + 1} ${player.name}</span>
-                    <span style="font-weight: bold;">${player.totalPoints} points</span>
-                </div>`
-            ).join('');
-            
-            document.getElementById('americano-final-standings').innerHTML = standingsHtml;
-            document.getElementById('phase-transition').classList.remove('hidden');
-            document.getElementById('tournament-phase').classList.add('hidden');
-        };
 
         // Helper method for partnerships
         MatsicanoTournament.prototype.generatePartnerships = function(playerIds) {

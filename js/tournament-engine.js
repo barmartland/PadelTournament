@@ -14,8 +14,32 @@ class TournamentEngine {
         this.tournamentStarted = false;
         this.tournamentComplete = false;
         this.roundHistory = [];
+        this.roundResults = []; // Array to store results per round: [{round: 1, matches: [...], completed: true}, ...]
         
         this.init();
+    }
+
+    calculatePlayerTotalsFromRounds() {
+        // Reset all player totals to 0
+        this.players.forEach(player => {
+            player.totalPoints = 0;
+        });
+        
+        // Add up points from rounds 1 through currentRound
+        for (let roundNum = 1; roundNum <= this.currentRound; roundNum++) {
+            const roundResult = this.roundResults.find(r => r.round === roundNum);
+            if (roundResult) {
+                roundResult.matches.forEach(match => {
+                    this.players.forEach(player => {
+                        if (match.team1.includes(player.id)) {
+                            player.totalPoints += match.team1PointsAwarded || 0;
+                        } else if (match.team2.includes(player.id)) {
+                            player.totalPoints += match.team2PointsAwarded || 0;
+                        }
+                    });
+                });
+            }
+        }
     }
 
     init() {
@@ -100,6 +124,12 @@ class TournamentEngine {
         this.matches = this.generateRoundMatches();
         this.tournamentStarted = true;
         
+        // Add round 1 to roundResults array
+        this.roundResults = [{
+            round: 1,
+            matches: JSON.parse(JSON.stringify(this.matches))
+        }];
+        
         document.getElementById('setup-phase').classList.add('hidden');
         document.getElementById('tournament-phase').classList.remove('hidden');
         
@@ -122,38 +152,29 @@ class TournamentEngine {
                 }
             }
             
-            // If points were already awarded, update player points immediately
-            if (match.pointsAwarded) {
-                this.updatePlayerPointsForMatch(match);
+            // Update match points
+            match.team1PointsAwarded = match.team1Score || 0;
+            match.team2PointsAwarded = match.team2Score || 0;
+            
+            // Update the array for current round
+            const currentRoundResult = this.roundResults.find(r => r.round === this.currentRound);
+            if (currentRoundResult) {
+                const arrayMatch = currentRoundResult.matches.find(m => m.id === matchId);
+                if (arrayMatch) {
+                    arrayMatch.team1Score = match.team1Score;
+                    arrayMatch.team2Score = match.team2Score;
+                    arrayMatch.team1PointsAwarded = match.team1PointsAwarded;
+                    arrayMatch.team2PointsAwarded = match.team2PointsAwarded;
+                }
             }
             
+            // Recalculate table from array
+            this.calculatePlayerTotalsFromRounds();
             this.renderMatches();
             this.renderLeaderboard();
         }
     }
 
-    updatePlayerPointsForMatch(match) {
-        // First, subtract the previously awarded points
-        this.players.forEach(player => {
-            if (match.team1.includes(player.id)) {
-                player.totalPoints -= match.team1PointsAwarded;
-            } else if (match.team2.includes(player.id)) {
-                player.totalPoints -= match.team2PointsAwarded;
-            }
-        });
-        
-        // Then add the new points
-        match.team1PointsAwarded = match.team1Score;
-        match.team2PointsAwarded = match.team2Score;
-        
-        this.players.forEach(player => {
-            if (match.team1.includes(player.id)) {
-                player.totalPoints += match.team1PointsAwarded;
-            } else if (match.team2.includes(player.id)) {
-                player.totalPoints += match.team2PointsAwarded;
-            }
-        });
-    }
 
     completeAllMatches() {
         let allValid = true;
@@ -176,31 +197,32 @@ class TournamentEngine {
                 match.pointsAwarded = true;
             }
         });
+        
+        // Recalculate totals from the array
+        this.calculatePlayerTotalsFromRounds();
         this.updateUI();
     }
 
     awardPointsForMatch(match) {
-        // Award points and track partnerships (tournament-specific logic)
+        // Set awarded points and track partnerships
         match.team1PointsAwarded = match.team1Score;
         match.team2PointsAwarded = match.team2Score;
         
-        this.players.forEach(player => {
-            if (match.team1.includes(player.id)) {
-                if (this.tournamentType === 'americano') {
+        // Handle partnership tracking for Americano
+        if (this.tournamentType === 'americano') {
+            this.players.forEach(player => {
+                if (match.team1.includes(player.id)) {
                     const partner = match.team1.find(id => id !== player.id);
                     player.partnerships.add(partner);
                     match.team2.forEach(oppId => player.opponents.add(oppId));
-                }
-                player.totalPoints += match.team1Score;
-            } else if (match.team2.includes(player.id)) {
-                if (this.tournamentType === 'americano') {
+                } else if (match.team2.includes(player.id)) {
                     const partner = match.team2.find(id => id !== player.id);
                     player.partnerships.add(partner);
                     match.team1.forEach(oppId => player.opponents.add(oppId));
                 }
-                player.totalPoints += match.team2Score;
-            }
-        });
+            });
+        }
+        
     }
 
     saveRoundState() {
@@ -222,17 +244,68 @@ class TournamentEngine {
     }
 
     nextRound() {
-        // Save current state before moving to next round
-        this.saveRoundState();
+        // Save current round to roundResults before moving to next
+        if (this.matches && this.matches.length > 0 && this.currentRound > 0) {
+            const roundResult = {
+                round: this.currentRound,
+                matches: JSON.parse(JSON.stringify(this.matches))
+            };
+            
+            // Add tournament-specific data if it exists
+            if (this.tournamentType === 'matsicano') {
+                roundResult.americanoPhase = this.americanoPhase;
+                roundResult.americanoRoundCompleted = this.americanoRoundCompleted;
+            }
+            
+            // Remove existing entry for this round if it exists
+            this.roundResults = this.roundResults.filter(r => r.round !== this.currentRound);
+            // Add the updated round
+            this.roundResults.push(roundResult);
+            // Sort by round number
+            this.roundResults.sort((a, b) => a.round - b.round);
+        }
         
+        // Check if tournament should end
         if (this.shouldEndTournament()) {
             this.tournamentComplete = true;
             this.updateUI();
             return;
         }
 
+        // Move to next round
         this.currentRound++;
-        this.matches = this.generateRoundMatches();
+        
+        // Check if this round already exists in roundResults
+        const existingRound = this.roundResults.find(r => r.round === this.currentRound);
+        if (existingRound) {
+            // Load existing round data
+            this.matches = JSON.parse(JSON.stringify(existingRound.matches));
+            
+            // Restore tournament-specific data if it exists
+            if (this.tournamentType === 'matsicano' && existingRound.americanoPhase !== undefined) {
+                this.americanoPhase = existingRound.americanoPhase;
+                this.americanoRoundCompleted = existingRound.americanoRoundCompleted;
+            }
+            
+            // Recalculate table to show updated totals
+            this.calculatePlayerTotalsFromRounds();
+        } else {
+            // Generate fresh matches for new round and add to array
+            this.matches = this.generateRoundMatches();
+            
+            const newRoundResult = {
+                round: this.currentRound,
+                matches: JSON.parse(JSON.stringify(this.matches))
+            };
+            
+            // Add tournament-specific data if it exists
+            if (this.tournamentType === 'matsicano') {
+                newRoundResult.americanoPhase = this.americanoPhase;
+                newRoundResult.americanoRoundCompleted = this.americanoRoundCompleted;
+            }
+            
+            this.roundResults.push(newRoundResult);
+        }
         
         if (this.matches.length === 0) {
             this.tournamentComplete = true;
@@ -242,25 +315,32 @@ class TournamentEngine {
     }
 
     goBackRound() {
-        if (this.roundHistory.length === 0) return;
+        if (this.currentRound <= 1) return;
         
-        if (confirm('Are you sure you want to go back to the previous round? Current round progress will be lost.')) {
-            const previousState = this.roundHistory.pop();
-            this.currentRound = previousState.round;
+        if (confirm('Are you sure you want to go back to the previous round?')) {
+            // Go back one round
+            this.currentRound--;
             
-            // Restore players state
-            if (this.tournamentType === 'americano') {
-                this.players = previousState.players.map(p => ({
-                    ...p,
-                    partnerships: new Set(p.partnerships),
-                    opponents: new Set(p.opponents)
-                }));
+            // Load the matches for this round from roundResults
+            const roundResult = this.roundResults.find(r => r.round === this.currentRound);
+            if (roundResult) {
+                // Load existing round data
+                this.matches = JSON.parse(JSON.stringify(roundResult.matches));
+                
+                // Restore tournament-specific state if it exists
+                if (this.tournamentType === 'matsicano' && roundResult.americanoPhase !== undefined) {
+                    this.americanoPhase = roundResult.americanoPhase;
+                    this.americanoRoundCompleted = roundResult.americanoRoundCompleted;
+                }
             } else {
-                this.players = previousState.players;
+                // This shouldn't happen, but generate fresh matches as fallback
+                this.matches = this.generateRoundMatches();
             }
             
-            this.matches = previousState.matches;
             this.tournamentComplete = false;
+            
+            // Recalculate player totals from rounds 1 through currentRound
+            this.calculatePlayerTotalsFromRounds();
             
             this.updateUI();
         }
@@ -290,6 +370,7 @@ class TournamentEngine {
         this.tournamentStarted = false;
         this.tournamentComplete = false;
         this.roundHistory = [];
+        this.roundResults = [];
         
         document.getElementById('setup-phase').classList.remove('hidden');
         document.getElementById('tournament-phase').classList.add('hidden');
@@ -331,7 +412,7 @@ class TournamentEngine {
             }
             
             // Disable inputs if tournament is complete
-            const inputDisabled = this.tournamentComplete || match.pointsAwarded;
+            const inputDisabled = this.tournamentComplete;
             
             matchDiv.innerHTML = `
                 <div class="match-teams">
@@ -475,7 +556,8 @@ class TournamentEngine {
     updateBackButton() {
         const backBtn = document.getElementById('back-round');
         if (backBtn) {
-            if (this.roundHistory.length > 0) {
+            // Show back button if we're not on round 1
+            if (this.currentRound > 1) {
                 backBtn.classList.remove('hidden');
             } else {
                 backBtn.classList.add('hidden');
